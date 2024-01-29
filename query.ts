@@ -63,6 +63,7 @@ type Operator<S extends EntitySchema<string>, O extends string> = <
   value: NormalOrIndexAttributeDataType<S[F]>
 ) => OperatorDefinition<F, O, S>;
 
+// @TODO: separate allowed operations by the field's datatype
 type QueryComparisonOperators =
   | "="
   | "!="
@@ -81,6 +82,7 @@ type QueryFunctions =
   | "contains"
   | "size";
 
+// @TODO: provide a way to use logical operators
 type QueryLogicalOperators = "and" | "or" | "not";
 
 type ConditionBuilder<S extends EntitySchema<string>> = (
