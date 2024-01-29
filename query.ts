@@ -28,6 +28,7 @@ type ComparisonOperatorDefinition<F extends string | number | symbol, O extends 
   value: NormalOrIndexAttributeDataType<S[F]>;
 };
 
+// The type might be make stricter by accepting the operator as a generic type parameter. It might help during implementation of the builder.
 type LogicalOperatorDefinition = {
   operator: QueryLogicalOperators;
   conditions: Array<ComparisonOperatorDefinition<string, string, EntitySchema<string>> | LogicalOperatorDefinition>;
@@ -61,24 +62,24 @@ type QueryFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exi
 
 type QueryLogicalOperators = "and" | "or" | "not";
 
-type ConditionExpressionBuilder<S extends EntitySchema<string>> = (
-  expressionBuilder: ComparisonOperatorFactory<S, QueryComparisonOperators>,
-  // expressionBuilder: ComparisonOperatorFactory<S, QueryComparisonOperators> &
-  // Record<
-  //   QueryLogicalOperators,
-  //   (
-  //     conditions: Array<
-  //       | OperatorDefinition<"conditional", ComparisonOperatorDefinition<keyof S, QueryComparisonOperators, S>>
-  //       | OperatorDefinition<"logical", LogicalOperatorDefinition>
-  //     >,
-  //   ) => OperatorDefinition<"logical", LogicalOperatorDefinition>
-  // >,
-) => SingleOrArray<
-  | OperatorDefinition<"conditional", ComparisonOperatorDefinition<keyof S, QueryComparisonOperators, S>>
-  | OperatorDefinition<"logical", LogicalOperatorDefinition>
->;
+// type ConditionExpressionBuilder<S extends EntitySchema<string>> = (
+//   expressionBuilder: ComparisonOperatorFactory<S, QueryComparisonOperators>,
+//   // expressionBuilder: ComparisonOperatorFactory<S, QueryComparisonOperators> &
+//   // Record<
+//   //   QueryLogicalOperators,
+//   //   (
+//   //     conditions: Array<
+//   //       | OperatorDefinition<"conditional", ComparisonOperatorDefinition<keyof S, QueryComparisonOperators, S>>
+//   //       | OperatorDefinition<"logical", LogicalOperatorDefinition>
+//   //     >,
+//   //   ) => OperatorDefinition<"logical", LogicalOperatorDefinition>
+//   // >,
+// ) => SingleOrArray<
+//   | OperatorDefinition<"conditional", ComparisonOperatorDefinition<keyof S, QueryComparisonOperators, S>>
+//   | OperatorDefinition<"logical", LogicalOperatorDefinition>
+// >;
 
-type TableConditionExpressionBuilder<S extends Record<string, EntitySchema<string>>> = (
+type ConditionExpressionBuilder<S extends Record<string, EntitySchema<string>>> = (
   expressionBuilder: { [K in keyof S]: ComparisonOperatorFactory<S[K], QueryComparisonOperators> } & {
     [LK in QueryLogicalOperators]: (
       conditions: Array<
@@ -90,27 +91,21 @@ type TableConditionExpressionBuilder<S extends Record<string, EntitySchema<strin
 ) => any;
 
 // @TODO: add constraints for operators allowed for partition key and sort key (if applicable)
-type QueryOperationBuilder<K extends string, S extends Record<K, EntitySchema<string>>> = {
-  // type QueryOperationBuilder<K extends string, S extends EntitySchema<K>> = {
-  // keyCondition: (builder: ConditionExpressionBuilder<PrimaryKeyAttributes<S>>) => QueryOperationBuilder<K, S>;
+type QueryOperationBuilder<S extends Record<string, EntitySchema<string>>> = {
   keyCondition: (
-    builder: TableConditionExpressionBuilder<{ [PK in keyof S]: PrimaryKeyAttributes<S[PK]> }>,
-  ) => QueryOperationBuilder<string, S>;
-  // filter: (builder: ConditionExpressionBuilder<NonPrimaryKeyAttributes<S>>) => QueryOperationBuilder<K, S>;
+    builder: ConditionExpressionBuilder<{ [PK in keyof S]: PrimaryKeyAttributes<S[PK]> }>,
+  ) => QueryOperationBuilder<S>;
+
   filter: (
-    builder: TableConditionExpressionBuilder<{ [FK in keyof S]: NonPrimaryKeyAttributes<S[FK]> }>,
-  ) => QueryOperationBuilder<string, S>;
+    builder: ConditionExpressionBuilder<{ [FK in keyof S]: NonPrimaryKeyAttributes<S[FK]> }>,
+  ) => QueryOperationBuilder<S>;
 };
 
-// type QueryBuilder<K extends string, S extends EntitySchema<K>> = {
-type QueryBuilder<K extends string, S extends Record<K, EntitySchema<string>>> = {
-  query: () => QueryOperationBuilder<K, S>;
+type QueryBuilder<S extends Record<string, EntitySchema<string>>> = {
+  query: () => QueryOperationBuilder<S>;
 };
 
-type Builder<K extends string, S extends Record<K, EntitySchema<string>>> = QueryBuilder<K, S>;
-// type Builder<S extends Record<string, EntitySchema<string>>> = {
-//   [K in keyof S]: QueryBuilder<keyof S[K] & string, S[K]>;
-// };
+type Builder<S extends Record<string, EntitySchema<string>>> = QueryBuilder<S>;
 
 type ExampleUsersEntitySchema = {
   pk: PartitionKey<`users#${string}`>;
@@ -133,7 +128,7 @@ type ExampleTableSchema = {
   comments: ExampleCommentsEntitySchema;
 };
 
-const builder: Builder<string, ExampleTableSchema> = {} as Builder<string, ExampleTableSchema>;
+const builder: Builder<ExampleTableSchema> = {} as Builder<ExampleTableSchema>;
 
 builder
   .query()
