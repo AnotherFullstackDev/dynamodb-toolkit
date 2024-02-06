@@ -1,10 +1,16 @@
-type PickByValue<T, ValueType> = Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? never : Key }[keyof T]>;
+type PreventEmptyObject<T> = keyof T extends never ? never : T;
 
-type OmitByValue<T, ValueType> = Pick<T, { [Key in keyof T]: T[Key] extends ValueType ? never : Key }[keyof T]>;
+type PickByValue<T, ValueType> = PreventEmptyObject<
+  Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? never : Key }[keyof T]>
+>;
+
+type OmitByValue<T, ValueType> = PreventEmptyObject<
+  Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? Key : never }[keyof T]>
+>;
 
 type SingleOrArray<T> = T | T[];
 
-type IndexAttribute<A extends string, T> = { attributeType: A; dataType: T };
+type IndexAttribute<A, T> = { attributeType: A; dataType: T };
 
 type IndexAttributeValueTypes = string | number | boolean;
 
@@ -77,10 +83,6 @@ type TupleValueByKey<T, K> = T extends [infer FT, ...infer R]
     : TupleValueByKey<R, K>
   : never;
 
-type VBK = TupleValueByKey<[["a", 1], ["b", 2]], "b">;
-type KT = TupleKeys<[["a", 1], ["b", 2]]>;
-type VT = TupleValues<[["a", 1]]>;
-
 type TupleKeyedEntitySchema = TupleKeyValuePeer<string, Record<string, unknown>>;
 
 type TupleKeyedEntityScheams = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];
@@ -95,15 +97,6 @@ type ComparisonOperatorFactory<S extends TupleKeyedEntityScheams, O extends stri
   value: NormalOrIndexAttributeDataType<LS[F]>,
 ) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, LS>>;
 
-// type Proxy<N extends boolean = boolean> = ComparisonOperatorFactory<ExampleUsersEntitySchema, QueryComparisonOperators>;
-
-const t = null as unknown as ComparisonOperatorFactory<
-  [["users", ExampleUsersEntitySchema], ["posts", ExamplePostsEntitySchema]],
-  QueryComparisonOperators
->;
-// const t = null as unknown as Proxy;
-t("age", "=", 1);
-
 type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
   operator: QueryLogicalOperators,
   ...conditions: ComparisonOperatorDefinition<F, QueryComparisonOperators, S>[]
@@ -115,23 +108,6 @@ type QueryComparisonOperators = "=" | "<>" | "<" | "<=" | ">" | ">=" | "begins_w
 type QueryFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exists" | "contains" | "size";
 
 type QueryLogicalOperators = "and" | "or" | "not";
-
-// type ConditionExpressionBuilder<S extends EntitySchema<string>> = (
-//   expressionBuilder: ComparisonOperatorFactory<S, QueryComparisonOperators>,
-//   // expressionBuilder: ComparisonOperatorFactory<S, QueryComparisonOperators> &
-//   // Record<
-//   //   QueryLogicalOperators,
-//   //   (
-//   //     conditions: Array<
-//   //       | OperatorDefinition<"conditional", ComparisonOperatorDefinition<keyof S, QueryComparisonOperators, S>>
-//   //       | OperatorDefinition<"logical", LogicalOperatorDefinition>
-//   //     >,
-//   //   ) => OperatorDefinition<"logical", LogicalOperatorDefinition>
-//   // >,
-// ) => SingleOrArray<
-//   | OperatorDefinition<"conditional", ComparisonOperatorDefinition<keyof S, QueryComparisonOperators, S>>
-//   | OperatorDefinition<"logical", LogicalOperatorDefinition>
-// >;
 
 type OverloadableComparisonFactory<T> = T extends [infer TupleSchema, ...infer R]
   ? TupleSchema extends TupleKeyedEntitySchema
@@ -176,12 +152,10 @@ type QueryOperationBuilder<S extends TupleKeyedEntityScheams> = {
     builder: ConditionExpressionBuilder<ForEachElementPickOnlyPrimaryKeyAttributes<S>>,
   ) => QueryOperationBuilder<S>;
   filter: (
-    // builder: ConditionExpressionBuilder<S>,
     builder: ConditionExpressionBuilder<ForEachElementPickOnlyNonPrimaryKeyAttributes<S>>,
   ) => QueryOperationBuilder<S>;
 };
 
-// type QueryBuilder<S extends [EntitySchema<string>, ...EntitySchema<string>[]]> = {
 type QueryBuilder<S extends TupleKeyedEntityScheams> = {
   query: () => QueryOperationBuilder<S>;
 };
@@ -219,11 +193,11 @@ type ExampleTableSchema = {
  *
  * Disadvantages:
  * - Hard to compose conditions on the go when if/else logic is required;
+ * - Hard to pass runtime data;
  */
 type SimpleStringCondition<T extends EntitySchema<string>, O extends string, K extends keyof T> = `${K &
   string} ${O} ${NormalOrIndexAttributeDataType<T[K]> & (string | number | boolean)}`;
 
-// type SimpleStringConditionFn<T extends EntitySchema<string>, O extends string> = <K extends keyof T>(
 type SimpleStringConditionFn<T extends EntitySchema<string>> = <K extends keyof T>(
   condition: T[K] extends PartitionKey<IndexAttributeValueTypes>
     ? SimpleStringCondition<T, "=", K>
@@ -240,19 +214,6 @@ const builder = {} as unknown as Builder<
   [["users", ExampleUsersEntitySchema], ["posts", ExamplePostsEntitySchema], ["comments", ExampleCommentsEntitySchema]]
 >;
 
-type T = ForEachElementPickOnlyNonPrimaryKeyAttributes<
-  [
-    // [["users", ExampleUsersEntitySchema],
-    ["posts", ExamplePostsEntitySchema],
-    ["comments", ExampleCommentsEntitySchema],
-  ]
->;
-const TT: T = [
-  // ["users", { age: 1 }],
-  ["posts", { publishingDate: new Date() }],
-  ["comments", { sk: true }],
-];
-
 builder
   .query()
   .keyCondition((eb, { or, and }) =>
@@ -260,7 +221,7 @@ builder
       eb("pk", "=", "users#some-random-user-id"),
       eb("sk", "=", 10),
       eb<"comments">("pk", "=", "comments#random-id"),
-      eb<"posts">("pk", "=", "posts#random-id"),
+      eb<"posts">("pk", "=", 1), // @TODO: fix this. It should not allow wrong value type
 
       // Simple consitions
       eb("sk", "=", 1),
@@ -271,6 +232,7 @@ builder
 
       // Should not work
       eb("sk", "=", "10"),
+      eb("sdada", "=", "10"),
 
       // Complex conditions
       and([eb("pk", "=", "posts#random-id")]),
