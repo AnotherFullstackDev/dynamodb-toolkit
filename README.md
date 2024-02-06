@@ -2,18 +2,6 @@
 
 ## DynamoDB peculiarities that MIGHT be incorporated
 
-- Only scalar data types can be used for primary key. A restriction can be put to prevent creation of primary weks with complex data types;
-- Non primary key attributes might contain complex data structure as Map/List it might be incorporated into the type system;
-- Derivate tables created with secondary indexes. The points to consider:
-  - Attributes copied to the secondary index. At least key attributes + any additional specified;
-- Specifying projection (a subset of attributes) when fetching items;
-- Working with secondary indexes. Points:
-  - The primary key schema might change + the available attributes might change as well;
-  - Specifying the index during read operation;
-- Specifying condition expression when updating/deleting items. It is necessary to implement "offline lock";
-- Update operations including atomic updates;
-- Type of the returned value after update (UPDATED_NEW);
-- When an item is updated the primary key cannot be change. It can be incorporated in the type system;
 - Usage in different contexts:
   - Application code;
     - Performing CRUD;
@@ -21,12 +9,36 @@
   - CDK infrastructure code;
     - Defining table/index schemas;
     - Defining integrations/resolvers connected to DynamoDB;
+
+### Data types
+
+- Converting to and from dynamodb data type descriptor;
 - Representing a datetime. Obviously it sohould be ISO 8601 but the datatype that DynamoDB offers is string. It can be handled at the type level and at the code level by providing transformation for JS Date object;
 - Binary values must be base64 encoded before sending them to DynamoDB. It can be solved at the type system level and at the code level providing automatic convertion of binary values to base64 strings;
-- Typings and convertions for Map and List data types;
-- Converting to and from data type descriptors;
-- Consistent partition ans sort key creation with some utilities;
-- Strongly and eventually consistent read modes;
+- Typings and convertions for Map and List data types; TODO: not sure if specific conversion is necessary
+
+### Keys & attributes
+
+- Only scalar data types can be used for primary key. A restriction can be put to prevent creation of primary keys with complex data types;
+- Non primary key attributes might contain complex data structure as Map/List. It might be incorporated into the type system;
+- KeyCondition for Scan operation has the following limits/requirements that might be ncorporated:
+  - For partition key only equality match is allowed;
+  - For sort key the number of allowed operators and functions is less than it is for other conditions;
+  - Seems that the only allowed logical operator for primary key is `AND`; TODO: requires checking
+
+### Indexes & derivate tables
+
+- Derivate tables created with secondary indexes. The points to consider:
+  - Attributes copied to the secondary index. At least key attributes + any additional specified;
+- Working with secondary indexes. Points:
+  - The primary key schema might change + the available attributes might change as well;
+  - Specifying the index during read operation;
+
+### Data API
+
+#### General
+
+- Providing possibility to conveniently handle a retry?
 - CRUD operations;
   - Create;
     - API operations PutItem / BatchWriteItem or PartiQL;
@@ -37,12 +49,31 @@
   - Query;
   - Scan;
   - Transactions ???;
-- Providing possibility to conveniently handle a retry?
+
+#### Read
+
+- Strongly and eventually consistent read modes;
+- Specifying projection (a subset of attributes) when fetching items;
+- Automatic pagination of a response in case `LastEvaluatedKey` is present in the Query result;
+
+#### Data change
+
+- Specifying condition expression when updating/deleting items. It is necessary to implement "offline lock";
+- Update operations including atomic updates;
+- Type of the returned value after update (UPDATED_NEW);
+- Type of information returned about consumed capacity (ReturnConsumedCapacity);
+- When an item is updated the primary key cannot be changed. It can be incorporated in the type system;
+- Posibility to specify a client key for client updates
+
+### Schema
+
+- Code level schema builder with extended types for applications;
 - Automatically added fields:
   - Created at;
   - Updated at - useful for implementing offline lock;
   - Updated by - ???
-- Automatic pagination of a response in case `LastEvaluatedKey` is present in the Query result;
+
+- Consistent partition ans sort key creation with some utilities; TODO: what is this about?
 
 ## Existing utilities and solutions to evaluate
 

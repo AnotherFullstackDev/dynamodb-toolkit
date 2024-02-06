@@ -4,25 +4,38 @@ type OmitByValue<T, ValueType> = Pick<T, { [Key in keyof T]: T[Key] extends Valu
 
 type SingleOrArray<T> = T | T[];
 
-type IndexAttribute<A, T> = { attributeType: A; dataType: T };
+type IndexAttribute<A extends string, T> = { attributeType: A; dataType: T };
 
-type PartitionKey<T> = IndexAttribute<"PARTITION_KEY", T>;
+type IndexAttributeValueTypes = string | number | boolean;
 
-type SortKey<T> = IndexAttribute<"SORT_KEY", T>;
+type PartitionKey<T extends IndexAttributeValueTypes> = IndexAttribute<"PARTITION_KEY", T>;
 
-type PrimaryKeyAttributes<T> = PickByValue<T, PartitionKey<unknown> | SortKey<unknown>>;
+type SortKey<T extends IndexAttributeValueTypes> = IndexAttribute<"SORT_KEY", T>;
 
-type NonPrimaryKeyAttributes<T> = OmitByValue<T, PartitionKey<unknown> | SortKey<unknown>>;
+type PrimaryKeyAttributes<T> = PickByValue<
+  T,
+  PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+>;
+
+type NonPrimaryKeyAttributes<T> = OmitByValue<
+  T,
+  PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+>;
 
 type EntitySchema<K extends string | number | symbol> = Record<
   K,
-  string | number | bigint | boolean | null | undefined | IndexAttribute<unknown, unknown>
+  string | number | bigint | boolean | null | undefined | Date | IndexAttribute<string, unknown>
 >;
 
-type NormalOrIndexAttributeDataType<T> = T extends IndexAttribute<unknown, infer U> ? U : T;
+type NormalOrIndexAttributeDataType<T> = T extends IndexAttribute<string, infer U> ? U : T;
 
 // Not sure if it makes sense to have this type stricter as `F extends keyof S`
-type ComparisonOperatorDefinition<F extends string | number | symbol, O extends string, S extends EntitySchema<F>> = {
+// type ComparisonOperatorDefinition<F extends string | number | symbol, O extends string, S extends EntitySchema<F>> = {
+type ComparisonOperatorDefinition<
+  F extends string | number | symbol,
+  O extends string,
+  S extends Record<F, unknown>,
+> = {
   field: F;
   operator: O;
   value: NormalOrIndexAttributeDataType<S[F]>;
@@ -44,11 +57,52 @@ type OperatorDefinition<
   operator: T extends "logical" ? O[] : O;
 };
 
-type ComparisonOperatorFactory<S extends EntitySchema<string>, O extends string> = <F extends keyof S>(
+type TupleKeyValuePeer<T extends string | number | symbol, V> = [T, V];
+
+type TupleKeys<T> = T extends [infer FT, ...infer R]
+  ? FT extends [infer K, infer V]
+    ? K | TupleKeys<R>
+    : never
+  : never;
+
+type TupleValues<T> = T extends [infer FT, ...infer R]
+  ? FT extends [infer K, infer V]
+    ? V | TupleValues<R>
+    : never
+  : never;
+
+type TupleValueByKey<T, K> = T extends [infer FT, ...infer R]
+  ? FT extends [K, infer V]
+    ? V
+    : TupleValueByKey<R, K>
+  : never;
+
+type VBK = TupleValueByKey<[["a", 1], ["b", 2]], "b">;
+type KT = TupleKeys<[["a", 1], ["b", 2]]>;
+type VT = TupleValues<[["a", 1]]>;
+
+type TupleKeyedEntitySchema = TupleKeyValuePeer<string, Record<string, unknown>>;
+
+type TupleKeyedEntityScheams = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];
+
+type ComparisonOperatorFactory<S extends TupleKeyedEntityScheams, O extends string> = <
+  SK extends TupleKeys<S>,
+  LS extends TupleValueByKey<S, SK> = TupleValueByKey<S, SK>,
+  F extends keyof LS = keyof LS,
+>(
   field: F,
   operator: O,
-  value: NormalOrIndexAttributeDataType<S[F]>,
-) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, S>>;
+  value: NormalOrIndexAttributeDataType<LS[F]>,
+) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, LS>>;
+
+// type Proxy<N extends boolean = boolean> = ComparisonOperatorFactory<ExampleUsersEntitySchema, QueryComparisonOperators>;
+
+const t = null as unknown as ComparisonOperatorFactory<
+  [["users", ExampleUsersEntitySchema], ["posts", ExamplePostsEntitySchema]],
+  QueryComparisonOperators
+>;
+// const t = null as unknown as Proxy;
+t("age", "=", 1);
 
 type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
   operator: QueryLogicalOperators,
@@ -56,7 +110,7 @@ type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S
 ) => OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
 // @TODO: separate allowed operations by the field's datatype & field type (partition key, sort key, etc.)
-type QueryComparisonOperators = "=" | "!=" | "<" | "<=" | ">" | ">=" | "begins_with" | "between" | "in";
+type QueryComparisonOperators = "=" | "<>" | "<" | "<=" | ">" | ">=" | "begins_with" | "between" | "in";
 
 type QueryFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exists" | "contains" | "size";
 
@@ -79,11 +133,37 @@ type QueryLogicalOperators = "and" | "or" | "not";
 //   | OperatorDefinition<"logical", LogicalOperatorDefinition>
 // >;
 
-type ConditionExpressionBuilder<S extends Record<string, EntitySchema<string>>> = (
-  expressionBuilder: { [K in keyof S]: ComparisonOperatorFactory<S[K], QueryComparisonOperators> } & {
+type OverloadableComparisonFactory<T> = T extends [infer TupleSchema, ...infer R]
+  ? TupleSchema extends TupleKeyedEntitySchema
+    ? // TODO: seems we can simplify this place by pasing only a single tuple keyed schema
+      ComparisonOperatorFactory<[TupleSchema], QueryComparisonOperators> & OverloadableComparisonFactory<R>
+    : never
+  : T;
+
+type ForEachElementPickOnlyPrimaryKeyAttributes<T> = T extends [infer Tuple, ...infer R]
+  ? [[TupleKeys<[Tuple]>, PrimaryKeyAttributes<TupleValues<[Tuple]>>], ...ForEachElementPickOnlyPrimaryKeyAttributes<R>]
+  : T;
+
+type ForEachElementPickOnlyNonPrimaryKeyAttributes<T> = T extends [infer Tuple, ...infer R]
+  ? [
+      [TupleKeys<[Tuple]>, NonPrimaryKeyAttributes<TupleValues<[Tuple]>>],
+      ...ForEachElementPickOnlyNonPrimaryKeyAttributes<R>,
+    ]
+  : T;
+
+type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
+  expressionBuilder: OverloadableComparisonFactory<S>,
+
+  // @TODO: add possibility to target specific entity type via generic parameter
+  logicalOperators: {
     [LK in QueryLogicalOperators]: (
       conditions: Array<
-        | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, QueryComparisonOperators, S[keyof S]>>
+        // @TODO: fix schema types for the logical conditions section
+        // | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, QueryComparisonOperators, S>>
+        | OperatorDefinition<
+            "conditional",
+            ComparisonOperatorDefinition<string, QueryComparisonOperators, EntitySchema<string>>
+          >
         | OperatorDefinition<"logical", LogicalOperatorDefinition>
       >,
     ) => OperatorDefinition<"logical", LogicalOperatorDefinition>;
@@ -91,35 +171,38 @@ type ConditionExpressionBuilder<S extends Record<string, EntitySchema<string>>> 
 ) => any;
 
 // @TODO: add constraints for operators allowed for partition key and sort key (if applicable)
-type QueryOperationBuilder<S extends Record<string, EntitySchema<string>>> = {
+type QueryOperationBuilder<S extends TupleKeyedEntityScheams> = {
   keyCondition: (
-    builder: ConditionExpressionBuilder<{ [PK in keyof S]: PrimaryKeyAttributes<S[PK]> }>,
+    builder: ConditionExpressionBuilder<ForEachElementPickOnlyPrimaryKeyAttributes<S>>,
   ) => QueryOperationBuilder<S>;
-
   filter: (
-    builder: ConditionExpressionBuilder<{ [FK in keyof S]: NonPrimaryKeyAttributes<S[FK]> }>,
+    // builder: ConditionExpressionBuilder<S>,
+    builder: ConditionExpressionBuilder<ForEachElementPickOnlyNonPrimaryKeyAttributes<S>>,
   ) => QueryOperationBuilder<S>;
 };
 
-type QueryBuilder<S extends Record<string, EntitySchema<string>>> = {
+// type QueryBuilder<S extends [EntitySchema<string>, ...EntitySchema<string>[]]> = {
+type QueryBuilder<S extends TupleKeyedEntityScheams> = {
   query: () => QueryOperationBuilder<S>;
 };
 
-type Builder<S extends Record<string, EntitySchema<string>>> = QueryBuilder<S>;
+type Builder<S extends TupleKeyedEntityScheams> = QueryBuilder<S>;
 
 type ExampleUsersEntitySchema = {
   pk: PartitionKey<`users#${string}`>;
-  sk: SortKey<number>;
+  sk: SortKey<`users#${number}`>;
   age: number;
 };
 
 type ExamplePostsEntitySchema = {
   pk: PartitionKey<`posts#${string}`>;
   sk: SortKey<number>;
+  publishingDate: Date;
 };
 
 type ExampleCommentsEntitySchema = {
   pk: PartitionKey<`comments#${string}`>;
+  sk: SortKey<`comments#${boolean}`>;
 };
 
 type ExampleTableSchema = {
@@ -128,56 +211,108 @@ type ExampleTableSchema = {
   comments: ExampleCommentsEntitySchema;
 };
 
-const builder: Builder<ExampleTableSchema> = {} as Builder<ExampleTableSchema>;
+/**
+ * Experiment with fully string condition
+ *
+ * Benefits:
+ * - Simplicity of writing conditions;
+ *
+ * Disadvantages:
+ * - Hard to compose conditions on the go when if/else logic is required;
+ */
+type SimpleStringCondition<T extends EntitySchema<string>, O extends string, K extends keyof T> = `${K &
+  string} ${O} ${NormalOrIndexAttributeDataType<T[K]> & (string | number | boolean)}`;
+
+// type SimpleStringConditionFn<T extends EntitySchema<string>, O extends string> = <K extends keyof T>(
+type SimpleStringConditionFn<T extends EntitySchema<string>> = <K extends keyof T>(
+  condition: T[K] extends PartitionKey<IndexAttributeValueTypes>
+    ? SimpleStringCondition<T, "=", K>
+    : T[K] extends SortKey<IndexAttributeValueTypes>
+    ? SimpleStringCondition<T, Exclude<QueryComparisonOperators, "!=" | "between" | "in">, K>
+    : SimpleStringCondition<T, QueryComparisonOperators, K>,
+) => any;
+
+const flatTest = null as unknown as SimpleStringConditionFn<ExampleUsersEntitySchema>;
+
+flatTest("pk = users#some-random-user-id");
+
+const builder = {} as unknown as Builder<
+  [["users", ExampleUsersEntitySchema], ["posts", ExamplePostsEntitySchema], ["comments", ExampleCommentsEntitySchema]]
+>;
+
+type T = ForEachElementPickOnlyNonPrimaryKeyAttributes<
+  [
+    // [["users", ExampleUsersEntitySchema],
+    ["posts", ExamplePostsEntitySchema],
+    ["comments", ExampleCommentsEntitySchema],
+  ]
+>;
+const TT: T = [
+  // ["users", { age: 1 }],
+  ["posts", { publishingDate: new Date() }],
+  ["comments", { sk: true }],
+];
 
 builder
   .query()
-  .keyCondition((eb) =>
-    eb.or([
+  .keyCondition((eb, { or, and }) =>
+    or([
+      eb("pk", "=", "users#some-random-user-id"),
+      eb("sk", "=", 10),
+      eb<"comments">("pk", "=", "comments#random-id"),
+      eb<"posts">("pk", "=", "posts#random-id"),
+
       // Simple consitions
-      eb.users("sk", "=", 1),
-      eb.users("pk", "=", "users#some-random-user-id"),
-      eb.posts("pk", "=", "posts#random-id"),
-      eb.posts("sk", "=", 10),
-      eb.comments("pk", "=", "comments#random-id"),
+      eb("sk", "=", 1),
+      eb("pk", "=", "users#some-random-user-id"),
+      eb("pk", "=", "posts#random-id"),
+      eb("sk", "=", 10),
+      eb("pk", "=", "comments#random-id"),
 
       // Should not work
-      eb.comments("sk", "=", 10),
+      eb("sk", "=", "10"),
 
       // Complex conditions
-      eb.and([eb.posts("pk", "=", "posts#random-id")]),
-      eb.and([eb.posts("pk", "=", "posts#random-id"), eb.posts("sk", "=", 2)]),
-      eb.and([
-        eb.or([eb.users("pk", "=", "users#some-random-user-id-2"), eb.users("pk", "!=", "users#some")]),
-        eb.users("sk", ">=", 20),
-        eb.users("sk", "<=", 50),
+      and([eb("pk", "=", "posts#random-id")]),
+      and([eb("pk", "=", "posts#random-id"), eb("sk", "=", 2)]),
+      and([
+        or([eb("pk", "=", "users#some-random-user-id-2"), eb("pk", "<>", "users#some")]),
+        eb("sk", ">=", 20),
+        eb("sk", "<=", 50),
       ]),
     ]),
   )
-  .filter((eb) => eb.users("age", "=", 1));
+  .filter((eb, { and }) =>
+    and([
+      eb("age", "=", 1),
+      eb("publishingDate", ">", new Date()),
+      // should not work
+      eb("way", "begins_with", "a"),
+    ]),
+  );
 
-const op: ComparisonOperatorFactory<ExampleUsersEntitySchema, QueryComparisonOperators> = (field, operator, value) => ({
-  type: "conditional",
-  operator: {
-    field,
-    operator,
-    value,
-  },
-});
+// const op: ComparisonOperatorFactory<ExampleUsersEntitySchema, QueryComparisonOperators> = (field, operator, value) => ({
+//   type: "conditional",
+//   operator: {
+//     field,
+//     operator,
+//     value,
+//   },
+// });
 
-const userTestId = `users#some-random-user-id`;
-op("pk", "=", userTestId);
-op("pk", "!=", userTestId);
-op("pk", "<", userTestId);
-op("pk", "<=", userTestId);
-op("pk", ">", userTestId);
-op("pk", ">=", userTestId);
-op("pk", "begins_with", userTestId);
-op("pk", "between", userTestId);
-op("pk", "in", userTestId);
+// const userTestId = `users#some-random-user-id`;
+// op("pk", "=", userTestId);
+// op("pk", "!=", userTestId);
+// op("pk", "<", userTestId);
+// op("pk", "<=", userTestId);
+// op("pk", ">", userTestId);
+// op("pk", ">=", userTestId);
+// op("pk", "begins_with", userTestId);
+// op("pk", "between", userTestId);
+// op("pk", "in", userTestId);
 
-op("sk", "=", "test");
+// op("sk", "=", "test");
 
-op("age", "=", 1);
+// op("age", "=", 1);
 
-const type: `users#${string}` = "users#some-random-user-id";
+// const type: `users#${string}` = "users#some-random-user-id";
