@@ -1,3 +1,14 @@
+import {
+  InferTupledMap,
+  TupleMapBuilder,
+  compositeType,
+  dateType,
+  numberType,
+  partitionKey,
+  schemaType,
+  sortKey,
+} from "./schema";
+
 type PreventEmptyObject<T> = keyof T extends never ? never : T;
 
 type PickByValue<T, ValueType> = PreventEmptyObject<
@@ -12,11 +23,11 @@ type SingleOrArray<T> = T | T[];
 
 type IndexAttribute<A, T> = { attributeType: A; dataType: T };
 
-type IndexAttributeValueTypes = string | number | boolean;
+export type IndexAttributeValueTypes = string | number | boolean;
 
-type PartitionKey<T extends IndexAttributeValueTypes> = IndexAttribute<"PARTITION_KEY", T>;
+export type PartitionKey<T extends IndexAttributeValueTypes> = IndexAttribute<"PARTITION_KEY", T>;
 
-type SortKey<T extends IndexAttributeValueTypes> = IndexAttribute<"SORT_KEY", T>;
+export type SortKey<T extends IndexAttributeValueTypes> = IndexAttribute<"SORT_KEY", T>;
 
 type PrimaryKeyAttributes<T> = PickByValue<
   T,
@@ -63,13 +74,16 @@ type OperatorDefinition<
   operator: T extends "logical" ? O[] : O;
 };
 
-type TupleKeyValuePeer<T extends string | number | symbol, V> = [T, V];
+export type TupleKeyValuePeer<T extends string | number | symbol, V> = [T, V];
 
 type TupleKeys<T> = T extends [infer FT, ...infer R]
   ? FT extends [infer K, infer V]
     ? K | TupleKeys<R>
     : never
   : never;
+
+type TupleKey<T> = T extends [infer K, infer V] ? K : never;
+type TupleValue<T> = T extends [infer K, infer V] ? V : never;
 
 type TupleValues<T> = T extends [infer FT, ...infer R]
   ? FT extends [infer K, infer V]
@@ -83,19 +97,24 @@ type TupleValueByKey<T, K> = T extends [infer FT, ...infer R]
     : TupleValueByKey<R, K>
   : never;
 
-type TupleKeyedEntitySchema = TupleKeyValuePeer<string, Record<string, unknown>>;
+// type TupleKeyedEntitySchema = TupleKeyValuePeer<string, Record<string, unknown>>;
+type TupleKeyedEntitySchema = TupleKeyValuePeer<
+  string,
+  [TupleKeyValuePeer<string, unknown>, ...TupleKeyValuePeer<string, unknown>[]]
+>;
 
 type TupleKeyedEntityScheams = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];
 
-type ComparisonOperatorFactory<S extends TupleKeyedEntityScheams, O extends string> = <
-  SK extends TupleKeys<S>,
-  LS extends TupleValueByKey<S, SK> = TupleValueByKey<S, SK>,
-  F extends keyof LS = keyof LS,
+// type ComparisonOperatorFactory<S extends TupleKeyedEntitySchema, O extends string> = <
+type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends string> = <
+  LN extends N,
+  F extends keyof S = keyof S,
 >(
   field: F,
   operator: O,
-  value: NormalOrIndexAttributeDataType<LS[F]>,
-) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, LS>>;
+  value: NormalOrIndexAttributeDataType<S[F]>,
+) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, S>>;
+// ) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, Record<F, TupleValue<S>>>>;
 
 type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
   operator: QueryLogicalOperators,
@@ -109,23 +128,87 @@ type QueryFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exi
 
 type QueryLogicalOperators = "and" | "or" | "not";
 
-type OverloadableComparisonFactory<T> = T extends [infer TupleSchema, ...infer R]
-  ? TupleSchema extends TupleKeyedEntitySchema
-    ? // TODO: seems we can simplify this place by pasing only a single tuple keyed schema
-      ComparisonOperatorFactory<[TupleSchema], QueryComparisonOperators> & OverloadableComparisonFactory<R>
+type ForEachKeyComparisonOperatorFactory<K, T> = T extends [infer KeyValuePeer, ...infer R]
+  ? KeyValuePeer extends TupleKeyValuePeer<string, unknown>
+    ? ComparisonOperatorFactory<K, Record<TupleKey<KeyValuePeer>, TupleValue<KeyValuePeer>>, QueryComparisonOperators> &
+        ForEachKeyComparisonOperatorFactory<K, R>
     : never
   : T;
 
-type ForEachElementPickOnlyPrimaryKeyAttributes<T> = T extends [infer Tuple, ...infer R]
-  ? [[TupleKeys<[Tuple]>, PrimaryKeyAttributes<TupleValues<[Tuple]>>], ...ForEachElementPickOnlyPrimaryKeyAttributes<R>]
+type T = ForEachKeyComparisonOperatorFactory<
+  "users",
+  [TupleKeyValuePeer<"pk", PartitionKey<IndexAttributeValueTypes>>]
+>;
+const t: T = null as any;
+t("pk", "=", "users#some-random-user-id");
+t<"users">("pk", "=", "users#some-random-user-id");
+
+type OverloadableComparisonFactory<T> = T extends [infer EntityTupleSchema, ...infer R]
+  ? EntityTupleSchema extends [infer K, infer Schemas]
+    ? ForEachKeyComparisonOperatorFactory<K, Schemas> & OverloadableComparisonFactory<R>
+    : never
   : T;
 
-type ForEachElementPickOnlyNonPrimaryKeyAttributes<T> = T extends [infer Tuple, ...infer R]
-  ? [
-      [TupleKeys<[Tuple]>, NonPrimaryKeyAttributes<TupleValues<[Tuple]>>],
-      ...ForEachElementPickOnlyNonPrimaryKeyAttributes<R>,
-    ]
+type S = OverloadableComparisonFactory<
+  [
+    ["users", [TupleKeyValuePeer<"pk", PartitionKey<`users#${string}`>>, TupleKeyValuePeer<"sk", SortKey<boolean>>]],
+    ["posts", [TupleKeyValuePeer<"pk", PartitionKey<`posts#${string}`>>, TupleKeyValuePeer<"sk", SortKey<boolean>>]],
+  ]
+>;
+const s: S = null as any;
+s("sk", "=", false);
+s("pk", "=", "users#some-random-user-id");
+s<"posts">("pk", "=", "posts#some-random-post-id");
+
+type PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<T> = T extends [infer AttributeTuple, ...infer R]
+  ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+    ? [
+        [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],
+        ...PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<R>,
+      ]
+    : PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<R>
   : T;
+
+type PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<T> = T extends [infer Model, ...infer R]
+  ? Model extends [infer K, infer L]
+    ? [
+        [K, PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<L>],
+        ...PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<R>,
+      ]
+    : never
+  : T;
+
+type PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<T> = T extends [infer AttributeTuple, ...infer R]
+  ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+    ? PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<R>
+    : [
+        [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],
+        ...PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<R>,
+      ]
+  : T;
+
+type PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<T> = T extends [infer Model, ...infer R]
+  ? Model extends [infer K, infer L]
+    ? [
+        [K, PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<L>],
+        ...PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<R>,
+      ]
+    : never
+  : T;
+
+type PK = PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<
+  [
+    // ["users", [TupleKeyValuePeer<"pk", PartitionKey<`users#${string}`>>, TupleKeyValuePeer<"sk", SortKey<boolean>>]],
+    [
+      "posts",
+      [
+        TupleKeyValuePeer<"pk", PartitionKey<`posts#${string}`>>,
+        TupleKeyValuePeer<"sk", SortKey<boolean>>,
+        TupleKeyValuePeer<"publishingDate", Date>,
+      ],
+    ],
+  ]
+>;
 
 type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
   expressionBuilder: OverloadableComparisonFactory<S>,
@@ -149,10 +232,10 @@ type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
 // @TODO: add constraints for operators allowed for partition key and sort key (if applicable)
 type QueryOperationBuilder<S extends TupleKeyedEntityScheams> = {
   keyCondition: (
-    builder: ConditionExpressionBuilder<ForEachElementPickOnlyPrimaryKeyAttributes<S>>,
+    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
   ) => QueryOperationBuilder<S>;
   filter: (
-    builder: ConditionExpressionBuilder<ForEachElementPickOnlyNonPrimaryKeyAttributes<S>>,
+    builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
   ) => QueryOperationBuilder<S>;
 };
 
@@ -210,9 +293,32 @@ const flatTest = null as unknown as SimpleStringConditionFn<ExampleUsersEntitySc
 
 flatTest("pk = users#some-random-user-id");
 
-const builder = {} as unknown as Builder<
-  [["users", ExampleUsersEntitySchema], ["posts", ExamplePostsEntitySchema], ["comments", ExampleCommentsEntitySchema]]
->;
+const schemaBuilder = {} as unknown as TupleMapBuilder;
+
+const usersSchema = schemaBuilder
+  .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
+  .add("sk", sortKey(numberType()))
+  .add("age", numberType());
+
+const postsSchema = schemaBuilder
+  .add("pk", partitionKey(compositeType((builder) => builder.literal("posts#").string())))
+  .add("sk", sortKey(numberType()))
+  .add("publishingDate", dateType());
+
+const commetnsSchema = schemaBuilder
+  .add("pk", partitionKey(compositeType((builder) => builder.literal("comments#").string())))
+  .add("sk", sortKey(compositeType((builder) => builder.literal("comments#").boolean())));
+
+const schema = schemaBuilder
+  .add("users", schemaType(usersSchema))
+  .add("posts", schemaType(postsSchema))
+  .add("comments", schemaType(commetnsSchema));
+
+type SchemaType = InferTupledMap<typeof schema>;
+const builder = {} as unknown as Builder<SchemaType>;
+// const builder = {} as unknown as Builder<
+//   [["users", ExampleUsersEntitySchema], ["posts", ExamplePostsEntitySchema], ["comments", ExampleCommentsEntitySchema]]
+// >;
 
 builder
   .query()
@@ -221,7 +327,9 @@ builder
       eb("pk", "=", "users#some-random-user-id"),
       eb("sk", "=", 10),
       eb<"comments">("pk", "=", "comments#random-id"),
-      eb<"posts">("pk", "=", 1), // @TODO: fix this. It should not allow wrong value type
+      eb<"posts">("pk", "=", "posts#sda"), // @TODO: fix this. It should not allow wrong value type
+      eb<"posts">("pk", "=", "users#some-random-user-id"),
+      eb<"users">("pk", "=", "users#some-random-user-id"),
 
       // Simple consitions
       eb("sk", "=", 1),
@@ -249,6 +357,7 @@ builder
       eb("age", "=", 1),
       eb("publishingDate", ">", new Date()),
       // should not work
+      eb("publishingDate", ">", 1),
       eb("way", "begins_with", "a"),
     ]),
   );
