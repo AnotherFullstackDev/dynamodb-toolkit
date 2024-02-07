@@ -105,7 +105,6 @@ type TupleKeyedEntitySchema = TupleKeyValuePeer<
 
 type TupleKeyedEntityScheams = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];
 
-// type ComparisonOperatorFactory<S extends TupleKeyedEntitySchema, O extends string> = <
 type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends string> = <
   LN extends N, // necessary to make the model names generics work
   F extends keyof S = keyof S,
@@ -120,16 +119,36 @@ type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S
   ...conditions: ComparisonOperatorDefinition<F, QueryComparisonOperators, S>[]
 ) => OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
-// @TODO: separate allowed operations by the field's datatype & field type (partition key, sort key, etc.)
 type QueryComparisonOperators = "=" | "<>" | "<" | "<=" | ">" | ">=" | "begins_with" | "between" | "in";
 
 type QueryFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exists" | "contains" | "size";
 
 type QueryLogicalOperators = "and" | "or" | "not";
 
+// @TODO: add map, list and set types
+type AttributeTypesToOperatorsTupledMap = [
+  [PartitionKey<any>, "="],
+  [SortKey<any>, "=" | "<" | "<=" | ">" | ">=" | "begins_with" | "between"],
+  [string, QueryComparisonOperators | QueryFunctions],
+  [number, QueryComparisonOperators | QueryFunctions],
+  [bigint, QueryComparisonOperators | QueryFunctions],
+  [boolean, QueryComparisonOperators | QueryFunctions],
+  [Date, QueryComparisonOperators | QueryFunctions],
+];
+
+type GetAttributeOperatorsByType<T, M> = M extends [infer FT, ...infer R]
+  ? FT extends [T, infer O]
+    ? O
+    : GetAttributeOperatorsByType<T, R>
+  : never;
+
 type ForEachKeyComparisonOperatorFactory<K, T> = T extends [infer KeyValuePeer, ...infer R]
   ? KeyValuePeer extends TupleKeyValuePeer<string, unknown>
-    ? ComparisonOperatorFactory<K, Record<TupleKey<KeyValuePeer>, TupleValue<KeyValuePeer>>, QueryComparisonOperators> &
+    ? ComparisonOperatorFactory<
+        K,
+        Record<TupleKey<KeyValuePeer>, TupleValue<KeyValuePeer>>,
+        GetAttributeOperatorsByType<TupleValue<KeyValuePeer>, AttributeTypesToOperatorsTupledMap>
+      > &
         ForEachKeyComparisonOperatorFactory<K, R>
     : never
   : T;
@@ -180,6 +199,7 @@ type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
   expressionBuilder: OverloadableComparisonFactory<S>,
 
   // @TODO: add possibility to target specific entity type via generic parameter
+  // Awaits for the results of first usage and a feedback on usefulness on targeting a specific type in the condition expression
   logicalOperators: {
     [LK in QueryLogicalOperators]: (
       conditions: Array<
@@ -187,7 +207,7 @@ type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
         // | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, QueryComparisonOperators, S>>
         | OperatorDefinition<
             "conditional",
-            ComparisonOperatorDefinition<string, QueryComparisonOperators, EntitySchema<string>>
+            ComparisonOperatorDefinition<string, QueryComparisonOperators | QueryFunctions, EntitySchema<string>>
           >
         | OperatorDefinition<"logical", LogicalOperatorDefinition>
       >,
@@ -195,7 +215,6 @@ type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
   },
 ) => any;
 
-// @TODO: add constraints for operators allowed for partition key and sort key (if applicable)
 type QueryOperationBuilder<S extends TupleKeyedEntityScheams> = {
   keyCondition: (
     builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
@@ -268,8 +287,6 @@ const usv: TypedTupleMapBuilderCompletedResult = us
   .add("sk", sortKey(compositeType((builder) => builder.literal("users#").number())))
   .add("age", numberType());
 
-const m = new Map<string, number>([["a", 1]]);
-
 const usersSchema = schemaBuilder
   .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
   .add("sk", sortKey(numberType()))
@@ -291,9 +308,6 @@ const schema = schemaBuilder
 
 type SchemaType = InferTupledMap<typeof schema>;
 const builder = {} as unknown as Builder<SchemaType>;
-// const builder = {} as unknown as Builder<
-//   [["users", ExampleUsersEntitySchema], ["posts", ExamplePostsEntitySchema], ["comments", ExampleCommentsEntitySchema]]
-// >;
 
 builder
   .query()
@@ -303,7 +317,6 @@ builder
       eb("sk", "=", 10),
       eb<"comments">("pk", "=", "comments#random-id"),
       eb<"posts">("pk", "=", "posts#sda"), // @TODO: fix this. It should not allow wrong value type
-      eb<"posts">("pk", "=", "users#some-random-user-id"),
       eb<"users">("pk", "=", "users#some-random-user-id"),
 
       // Simple consitions
@@ -314,6 +327,8 @@ builder
       eb("pk", "=", "comments#random-id"),
 
       // Should not work
+      eb<"posts">("pk", "=", "users#some-random-user-id"),
+      eb("pk", ">=", "posts#random-id"),
       eb("sk", "=", "10"),
       eb("sdada", "=", "10"),
 
