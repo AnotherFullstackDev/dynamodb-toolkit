@@ -1,6 +1,7 @@
 import {
   InferTupledMap,
   TupleMapBuilder,
+  TypedTupleMapBuilderCompletedResult,
   compositeType,
   dateType,
   numberType,
@@ -97,7 +98,6 @@ type TupleValueByKey<T, K> = T extends [infer FT, ...infer R]
     : TupleValueByKey<R, K>
   : never;
 
-// type TupleKeyedEntitySchema = TupleKeyValuePeer<string, Record<string, unknown>>;
 type TupleKeyedEntitySchema = TupleKeyValuePeer<
   string,
   [TupleKeyValuePeer<string, unknown>, ...TupleKeyValuePeer<string, unknown>[]]
@@ -107,14 +107,13 @@ type TupleKeyedEntityScheams = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchem
 
 // type ComparisonOperatorFactory<S extends TupleKeyedEntitySchema, O extends string> = <
 type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends string> = <
-  LN extends N,
+  LN extends N, // necessary to make the model names generics work
   F extends keyof S = keyof S,
 >(
   field: F,
   operator: O,
   value: NormalOrIndexAttributeDataType<S[F]>,
 ) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, S>>;
-// ) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, Record<F, TupleValue<S>>>>;
 
 type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
   operator: QueryLogicalOperators,
@@ -135,30 +134,11 @@ type ForEachKeyComparisonOperatorFactory<K, T> = T extends [infer KeyValuePeer, 
     : never
   : T;
 
-type T = ForEachKeyComparisonOperatorFactory<
-  "users",
-  [TupleKeyValuePeer<"pk", PartitionKey<IndexAttributeValueTypes>>]
->;
-const t: T = null as any;
-t("pk", "=", "users#some-random-user-id");
-t<"users">("pk", "=", "users#some-random-user-id");
-
 type OverloadableComparisonFactory<T> = T extends [infer EntityTupleSchema, ...infer R]
   ? EntityTupleSchema extends [infer K, infer Schemas]
     ? ForEachKeyComparisonOperatorFactory<K, Schemas> & OverloadableComparisonFactory<R>
     : never
   : T;
-
-type S = OverloadableComparisonFactory<
-  [
-    ["users", [TupleKeyValuePeer<"pk", PartitionKey<`users#${string}`>>, TupleKeyValuePeer<"sk", SortKey<boolean>>]],
-    ["posts", [TupleKeyValuePeer<"pk", PartitionKey<`posts#${string}`>>, TupleKeyValuePeer<"sk", SortKey<boolean>>]],
-  ]
->;
-const s: S = null as any;
-s("sk", "=", false);
-s("pk", "=", "users#some-random-user-id");
-s<"posts">("pk", "=", "posts#some-random-post-id");
 
 type PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<T> = T extends [infer AttributeTuple, ...infer R]
   ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
@@ -195,20 +175,6 @@ type PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<T> = T extends [i
       ]
     : never
   : T;
-
-type PK = PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<
-  [
-    // ["users", [TupleKeyValuePeer<"pk", PartitionKey<`users#${string}`>>, TupleKeyValuePeer<"sk", SortKey<boolean>>]],
-    [
-      "posts",
-      [
-        TupleKeyValuePeer<"pk", PartitionKey<`posts#${string}`>>,
-        TupleKeyValuePeer<"sk", SortKey<boolean>>,
-        TupleKeyValuePeer<"publishingDate", Date>,
-      ],
-    ],
-  ]
->;
 
 type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
   expressionBuilder: OverloadableComparisonFactory<S>,
@@ -294,6 +260,15 @@ const flatTest = null as unknown as SimpleStringConditionFn<ExampleUsersEntitySc
 flatTest("pk = users#some-random-user-id");
 
 const schemaBuilder = {} as unknown as TupleMapBuilder;
+
+type US = TupleMapBuilder<ExampleUsersEntitySchema>;
+const us: US = null as any;
+const usv: TypedTupleMapBuilderCompletedResult = us
+  .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
+  .add("sk", sortKey(compositeType((builder) => builder.literal("users#").number())))
+  .add("age", numberType());
+
+const m = new Map<string, number>([["a", 1]]);
 
 const usersSchema = schemaBuilder
   .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
