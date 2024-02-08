@@ -1,9 +1,13 @@
 import {
+  ForEachMapValuePrependKey,
   InferTupledMap,
   TupleMapBuilder,
   TypedTupleMapBuilderCompletedResult,
   compositeType,
+  createSchemaBuilder,
   dateType,
+  listAttribute,
+  mapAttribute,
   numberType,
   partitionKey,
   schemaType,
@@ -175,7 +179,8 @@ type T = LeafKeysWithTypes<RandomObject>;
 const T: T = ["c.d.g", "sdad"];
 
 // A tuple attribute can be created based on the list type
-export type ListAttribute<T> = Attribute<"LIST", T[]>;
+// export type ListAttribute<T> = Attribute<"LIST", T[]>;
+export type ListAttribute<T> = Attribute<"LIST", T>; // changing type from T[] to T to avoid problems with extracting Attribute value types
 
 export type MapAttribute<T> = Attribute<"MAP", T>;
 
@@ -330,10 +335,25 @@ const usv: TypedTupleMapBuilderCompletedResult = us
   .add("age", numberType())
   .build();
 
-const usersSchema = schemaBuilder
+const usersSchema = createSchemaBuilder()
   .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
   .add("sk", sortKey(numberType()))
   .add("age", numberType())
+  .add(
+    "address",
+    mapAttribute(
+      createSchemaBuilder()
+        .add("city", mapAttribute(createSchemaBuilder().add("name", "value").add("province", "value").build()))
+        .add("street", "value")
+        .add("zip", numberType())
+        .add("building", "value")
+        .build(),
+    ),
+  )
+  .add(
+    "cards",
+    listAttribute(mapAttribute(createSchemaBuilder().add("last4", numberType()).add("type", "value").build())),
+  )
   .build();
 
 const postsSchema = schemaBuilder
@@ -393,6 +413,12 @@ builder
     and([
       eb("age", "=", 1),
       eb("publishingDate", ">", new Date()),
+
+      // Nested data types
+      eb("address.city.name", "=", "New York"),
+      eb("address.zip", "=", 12345),
+      eb("cards.[0].last4", "=", 1234),
+
       // should not work
       eb("publishingDate", ">", 1),
       eb("way", "begins_with", "a"),
