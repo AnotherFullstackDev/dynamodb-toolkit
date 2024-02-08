@@ -22,13 +22,13 @@ type OmitByValue<T, ValueType> = PreventEmptyObject<
 
 type SingleOrArray<T> = T | T[];
 
-type IndexAttribute<A, T> = { attributeType: A; dataType: T };
+export type Attribute<A, T> = { attributeType: A; dataType: T };
 
 export type IndexAttributeValueTypes = string | number | boolean;
 
-export type PartitionKey<T extends IndexAttributeValueTypes> = IndexAttribute<"PARTITION_KEY", T>;
+export type PartitionKey<T extends IndexAttributeValueTypes> = Attribute<"PARTITION_KEY", T>;
 
-export type SortKey<T extends IndexAttributeValueTypes> = IndexAttribute<"SORT_KEY", T>;
+export type SortKey<T extends IndexAttributeValueTypes> = Attribute<"SORT_KEY", T>;
 
 type PrimaryKeyAttributes<T> = PickByValue<
   T,
@@ -42,10 +42,10 @@ type NonPrimaryKeyAttributes<T> = OmitByValue<
 
 type EntitySchema<K extends string | number | symbol> = Record<
   K,
-  string | number | bigint | boolean | null | undefined | Date | IndexAttribute<string, unknown>
+  string | number | bigint | boolean | null | undefined | Date | Attribute<string, unknown>
 >;
 
-type NormalOrIndexAttributeDataType<T> = T extends IndexAttribute<string, infer U> ? U : T;
+type NormalOrIndexAttributeDataType<T> = T extends Attribute<string, infer U> ? U : T;
 
 // Not sure if it makes sense to have this type stricter as `F extends keyof S`
 // type ComparisonOperatorDefinition<F extends string | number | symbol, O extends string, S extends EntitySchema<F>> = {
@@ -141,6 +141,48 @@ type GetAttributeOperatorsByType<T, M> = M extends [infer FT, ...infer R]
     ? O
     : GetAttributeOperatorsByType<T, R>
   : never;
+
+type MapLeafKeys<T> = {
+  [K in keyof T]: T[K] extends object ? `${K & string}.${MapLeafKeys<T[K]>}` : `${K & string}`;
+}[keyof T];
+// Get leaf keys from an object with value types
+// Get leaf keys from an object with value types togather with corresponding type as a tuple
+
+// type LeafKeysWithTypes<T> = {
+//   [K in keyof T]: T[K] extends infer V ? (V extends string ? [Record<K, V>] : LeafKeysWithTypes<V>) : never;
+// }[keyof T];
+
+type LeafKeysWithTypes<T, P = unknown> = {
+  [K in keyof T]: T[K] extends object
+    ? LeafKeysWithTypes<T[K], P extends string ? `${P}.${K & string}` : K>
+    : [P extends string ? `${P}.${K & string}` : K, T[K]];
+}[keyof T];
+
+// type LeafKeysWithTypesTuple<T> = TupleKeyValuePeer<LeafKeysWithTypes<T>[0], LeafKeysWithTypes<T>[1]>;
+
+type RandomObject = {
+  a: number;
+  b: string;
+  c: {
+    a: boolean;
+    d: {
+      g: string;
+    };
+  };
+};
+
+type T = LeafKeysWithTypes<RandomObject>;
+const T: T = ["c.d.g", "sdad"];
+
+// A tuple attribute can be created based on the list type
+export type ListAttribute<T> = Attribute<"LIST", T[]>;
+
+export type MapAttribute<T> = Attribute<"MAP", T>;
+
+export type SetAttributeValueTypes = string | number;
+
+// Set attribute can contain string, number and binary types
+export type SetAttribute<T extends SetAttributeValueTypes> = Attribute<"SET", T[]>;
 
 type ForEachKeyComparisonOperatorFactory<K, T> = T extends [infer KeyValuePeer, ...infer R]
   ? KeyValuePeer extends TupleKeyValuePeer<string, unknown>
@@ -285,26 +327,31 @@ const us: US = null as any;
 const usv: TypedTupleMapBuilderCompletedResult = us
   .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
   .add("sk", sortKey(compositeType((builder) => builder.literal("users#").number())))
-  .add("age", numberType());
+  .add("age", numberType())
+  .build();
 
 const usersSchema = schemaBuilder
   .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
   .add("sk", sortKey(numberType()))
-  .add("age", numberType());
+  .add("age", numberType())
+  .build();
 
 const postsSchema = schemaBuilder
   .add("pk", partitionKey(compositeType((builder) => builder.literal("posts#").string())))
   .add("sk", sortKey(numberType()))
-  .add("publishingDate", dateType());
+  .add("publishingDate", dateType())
+  .build();
 
 const commetnsSchema = schemaBuilder
   .add("pk", partitionKey(compositeType((builder) => builder.literal("comments#").string())))
-  .add("sk", sortKey(compositeType((builder) => builder.literal("comments#").boolean())));
+  .add("sk", sortKey(compositeType((builder) => builder.literal("comments#").boolean())))
+  .build();
 
 const schema = schemaBuilder
   .add("users", schemaType(usersSchema))
   .add("posts", schemaType(postsSchema))
-  .add("comments", schemaType(commetnsSchema));
+  .add("comments", schemaType(commetnsSchema))
+  .build();
 
 type SchemaType = InferTupledMap<typeof schema>;
 const builder = {} as unknown as Builder<SchemaType>;
