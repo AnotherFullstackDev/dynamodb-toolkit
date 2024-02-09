@@ -13,6 +13,7 @@ import {
   useSchema,
   sortKey,
   TupleMapBuilderResult,
+  string,
 } from "./schema";
 
 type PreventEmptyObject<T> = keyof T extends never ? never : T;
@@ -485,3 +486,20 @@ queryBuilder<typeof schema>()
 // op("age", "=", 1);
 
 // const type: `users#${string}` = "users#some-random-user-id";
+
+const userEntitySchema = schemaBuilder()
+  .add("id", partitionKey(composite((t) => t.literal("users#").string())))
+  .add("name", string())
+  .add("age", number())
+  .add("dob", date())
+  .build();
+
+const tableSchema = schemaBuilder().add("users", useSchema(userEntitySchema)).build();
+
+const qb = queryBuilder<typeof tableSchema>();
+
+qb.query()
+  .keyCondition((eb) => eb("id", "=", "users#some-random-user-id"))
+  .filter((eb, { or }) =>
+    or([eb("name", "begins_with", "bob"), eb("age", ">", 18), eb("dob", ">", new Date("2007-01-01"))]),
+  );
