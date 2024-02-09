@@ -3,15 +3,16 @@ import {
   InferTupledMap,
   TupleMapBuilder,
   TypedTupleMapBuilderCompletedResult,
-  compositeType,
-  createSchemaBuilder,
-  dateType,
-  listAttribute,
-  mapAttribute,
-  numberType,
+  composite,
+  schemaBuilder,
+  date,
+  list,
+  map,
+  number,
   partitionKey,
-  schemaType,
+  useSchema,
   sortKey,
+  TupleMapBuilderResult,
 } from "./schema";
 
 type PreventEmptyObject<T> = keyof T extends never ? never : T;
@@ -280,6 +281,10 @@ type QueryBuilder<S extends TupleKeyedEntityScheams> = {
 
 type Builder<S extends TupleKeyedEntityScheams> = QueryBuilder<S>;
 
+const queryBuilder = <S extends TupleMapBuilderResult<unknown, TupleKeyedEntityScheams>>(): Builder<
+  InferTupledMap<S>
+> => null as unknown as Builder<InferTupledMap<S>>;
+
 type ExampleUsersEntitySchema = {
   pk: PartitionKey<`users#${string}`>;
   sk: SortKey<`users#${number}`>;
@@ -338,75 +343,64 @@ const flatTest = null as unknown as SimpleStringConditionFn<ExampleUsersEntitySc
 
 flatTest("pk = users#some-random-user-id");
 
-const schemaBuilder = {} as unknown as TupleMapBuilder;
-
-const usersSchema = createSchemaBuilder()
-  .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
-  .add("sk", sortKey(numberType()))
-  .add("age", numberType())
+const usersSchema = schemaBuilder()
+  .add("pk", partitionKey(composite((builder) => builder.literal("users#").string())))
+  .add("sk", sortKey(number()))
+  .add("age", number())
   .add(
     "address",
-    mapAttribute(
-      createSchemaBuilder()
-        .add("city", mapAttribute(createSchemaBuilder().add("name", "value").add("province", "value").build()))
+    map(
+      schemaBuilder()
+        .add("city", map(schemaBuilder().add("name", "value").add("province", "value").build()))
         .add("street", "value")
-        .add("zip", numberType())
+        .add("zip", number())
         .add("building", "value")
         .build(),
     ),
   )
-  .add(
-    "cards",
-    listAttribute(mapAttribute(createSchemaBuilder().add("last4", numberType()).add("type", "value").build())),
-  )
+  .add("cards", list(map(schemaBuilder().add("last4", number()).add("type", "value").build())))
   .build();
 
-const postsSchema = createSchemaBuilder<ExamplePostsEntitySchema>()
-  .add("pk", partitionKey(compositeType((builder) => builder.literal("posts#").string())))
-  .add("sk", sortKey(numberType()))
-  .add("publishingDate", dateType())
-  .add(
-    "authors",
-    listAttribute(mapAttribute(createSchemaBuilder().add("name", "value").add("rating", numberType()).build())),
-  )
+const postsSchema = schemaBuilder<ExamplePostsEntitySchema>()
+  .add("pk", partitionKey(composite((builder) => builder.literal("posts#").string())))
+  .add("sk", sortKey(number()))
+  .add("publishingDate", date())
+  .add("authors", list(map(schemaBuilder().add("name", "value").add("rating", number()).build())))
   .build();
 
 // There is a possibility of type missmatch if type is provided for a nested schema
-const commentUsersSchema = createSchemaBuilder<{ username: string; postedAt: number }>()
+const commentUsersSchema = schemaBuilder<{ username: string; postedAt: number }>()
   .add("username", "value")
-  .add("postedAt", numberType())
+  .add("postedAt", number())
   .build();
-const commetnsSchema = createSchemaBuilder()
-  .add("pk", partitionKey(compositeType((builder) => builder.literal("comments#").string())))
-  .add("sk", sortKey(compositeType((builder) => builder.literal("comments#").boolean())))
-  .add("users", listAttribute(mapAttribute(commentUsersSchema)))
+const commetnsSchema = schemaBuilder()
+  .add("pk", partitionKey(composite((builder) => builder.literal("comments#").string())))
+  .add("sk", sortKey(composite((builder) => builder.literal("comments#").boolean())))
+  .add("users", list(map(commentUsersSchema)))
   .build();
 
-const categoriesSchema = createSchemaBuilder<ExampleCategoriesEntitySchema>()
-  .add("pk", partitionKey(compositeType((builder) => builder.literal("categories#").string())))
-  .add("sk", sortKey(numberType()))
+const categoriesSchema = schemaBuilder<ExampleCategoriesEntitySchema>()
+  .add("pk", partitionKey(composite((builder) => builder.literal("categories#").string())))
+  .add("sk", sortKey(number()))
   .add(
     "metadata",
-    mapAttribute(
-      createSchemaBuilder<{ name: string; description: number }>()
-        .add("name", "value")
-        .add("description", numberType())
-        .build(),
+    map(
+      schemaBuilder<{ name: string; description: number }>().add("name", "value").add("description", number()).build(),
     ),
   )
   .build();
 
-const schema = schemaBuilder
-  .add("users", schemaType(usersSchema))
-  .add("posts", schemaType(postsSchema))
-  .add("comments", schemaType(commetnsSchema))
-  .add("categories", schemaType(categoriesSchema))
+const schema = schemaBuilder()
+  .add("users", useSchema(usersSchema))
+  .add("posts", useSchema(postsSchema))
+  .add("comments", useSchema(commetnsSchema))
+  .add("categories", useSchema(categoriesSchema))
   .build();
 
-type SchemaType = InferTupledMap<typeof schema>;
-const builder = {} as unknown as Builder<SchemaType>;
+// type SchemaType = InferTupledMap<typeof schema>;
+// const builder = {} as unknown as Builder<SchemaType>;
 
-builder
+queryBuilder<typeof schema>()
   .query()
   .keyCondition((eb, { or, and }) =>
     or([

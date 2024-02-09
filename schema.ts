@@ -124,16 +124,20 @@ export type InferCompositeType<T extends CompositeTypeBuilder<any>> = T extends 
   ? R
   : never;
 
-export const compositeType = <V extends (fn: CompositeTypeBuilder) => CompositeTypeBuilder>(
+export const composite = <V extends (fn: CompositeTypeBuilder) => CompositeTypeBuilder>(
   fn: V,
 ): CompositeValue<InferCompositeType<ReturnType<V>>> => fn as any;
 
-export const numberType = <V extends number>(): V => null as any;
+export const number = <V extends number>(): V => null as any;
 
-export const dateType = <V extends Date>(): V => null as any;
+export const string = <V extends string>(): V => null as any;
+
+export const bool = <V extends boolean>(): V => null as any;
+
+export const date = <V extends Date>(): V => null as any;
 
 // export const schemaType = <V extends TupleMapBuilder<any, any> | TypedTupleMapBuilderCompletedResult>(
-export const schemaType = <V extends TupleMapBuilderResult>(value: V): ForEachMapValuePrependKey<InferTupledMap<V>> =>
+export const useSchema = <V extends TupleMapBuilderResult>(value: V): ForEachMapValuePrependKey<InferTupledMap<V>> =>
   value as any;
 
 export const partitionKey = <V extends IndexAttributeValueTypes>(value: V): PartitionKey<V> => ({
@@ -151,15 +155,15 @@ export const createModel = <N extends string, M extends TupleMapBuilderResult>(
   model: M,
 ): TupleKeyValuePeer<N, InferTupledMap<M>> => [name, model as any];
 
-export const createSchemaBuilder = <I extends Record<string, unknown> = TupleMapBuilderUnknownInterface>(): TupleMapBuilder<
+export const schemaBuilder = <I extends Record<string, unknown> = TupleMapBuilderUnknownInterface>(): TupleMapBuilder<
   I extends TupleMapBuilderUnknownInterface ? I : TransformTypeToSchemaBuilderInterface<I>
 > => ({} as any);
 
-export const listAttribute = <V>(value: V): ListAttribute<V> => value as any;
+export const list = <V>(value: V): ListAttribute<V> => value as any;
 
-export const mapAttribute = <V extends TupleMapBuilderResult>(value: V): MapAttribute<V> => value as any;
+export const map = <V extends TupleMapBuilderResult>(value: V): MapAttribute<V> => value as any;
 
-export const setAttribute = <V extends SetAttributeValueTypes>(value: V): SetAttribute<V> => value as any;
+export const set = <V extends SetAttributeValueTypes>(value: V): SetAttribute<V> => value as any;
 
 // @TODO: check for duplicates
 type InferAttributeValue<T> = T extends Attribute<infer K, infer MV> ? MV : T;

@@ -9,14 +9,14 @@ import {
   NotTypedTupleMapBuilderCompleteResult,
   TupleMapBuilder,
   TupleMapBuilderResult,
-  compositeType,
+  composite,
   createModel,
-  createSchemaBuilder,
-  listAttribute,
-  mapAttribute,
-  numberType,
+  schemaBuilder,
+  list,
+  map,
+  number,
   partitionKey,
-  schemaType,
+  useSchema,
   sortKey,
 } from "./schema";
 
@@ -62,8 +62,8 @@ type T = {
 };
 const t0 = {
   name: "string",
-  address: mapAttribute(
-    createSchemaBuilder<{
+  address: map(
+    schemaBuilder<{
       zip: number;
       building: {
         number: number;
@@ -72,69 +72,66 @@ const t0 = {
         };
       };
     }>()
-      .add("zip", numberType())
+      .add("zip", number())
       .add(
         "building",
-        mapAttribute(
-          createSchemaBuilder<{
+        map(
+          schemaBuilder<{
             number: number;
             additionalInfo: {
               comment: number;
             };
           }>()
-            .add("number", numberType())
-            .add("additionalInfo", mapAttribute(createSchemaBuilder().add("comment", numberType()).build()))
+            .add("number", number())
+            .add("additionalInfo", map(schemaBuilder().add("comment", number()).build()))
             .build(),
         ),
       )
       .build(),
   ),
-  cards: listAttribute(mapAttribute(createSchemaBuilder<{ last4: string }>().add("last4", "string").build())),
+  cards: list(map(schemaBuilder<{ last4: string }>().add("last4", "string").build())),
 };
-const t1 = createSchemaBuilder<T>()
+const t1 = schemaBuilder<T>()
   .add("name", "value")
   .add(
     "address",
-    mapAttribute(
-      createSchemaBuilder()
-        .add("zip", numberType())
+    map(
+      schemaBuilder()
+        .add("zip", number())
         .add(
           "building",
-          mapAttribute(
-            createSchemaBuilder()
-              .add("number", numberType())
-              .add("additionalInfo", mapAttribute(createSchemaBuilder().add("comment", numberType()).build()))
+          map(
+            schemaBuilder()
+              .add("number", number())
+              .add("additionalInfo", map(schemaBuilder().add("comment", number()).build()))
               .build(),
           ),
         )
         .build(),
     ),
   )
-  .add("cards", listAttribute(mapAttribute(createSchemaBuilder().add("last4", "string").build())))
+  .add("cards", list(map(schemaBuilder().add("last4", "string").build())))
   .build();
 
 type T3 = { nestedList: { value: number }[] };
-const t3s = createSchemaBuilder<{ value: number }>().add("value", numberType()).build();
-const t3 = createSchemaBuilder<T3>()
-  .add("nestedList", listAttribute(mapAttribute(t3s)))
+const t3s = schemaBuilder<{ value: number }>().add("value", number()).build();
+const t3 = schemaBuilder<T3>()
+  .add("nestedList", list(map(t3s)))
   .build();
 
-createSchemaBuilder<T3>().add(
-  "nestedList",
-  listAttribute(mapAttribute(createSchemaBuilder().add("value", numberType()).build())),
-);
+schemaBuilder<T3>().add("nestedList", list(map(schemaBuilder().add("value", number()).build())));
 
 type T4 = { nestedList: { value: number } };
-const t4 = createSchemaBuilder<T3>().add("nestedList", mapAttribute(t3s)).build();
+const t4 = schemaBuilder<T3>().add("nestedList", map(t3s)).build();
 
-const sb = createSchemaBuilder();
-const sbs = sb.add("pk", numberType()).add("sk", numberType()).add("age", numberType()).build();
+const sb = schemaBuilder();
+const sbs = sb.add("pk", number()).add("sk", number()).add("age", number()).build();
 const sbm = createModel("schema_builder_model", sbs);
 
-const tsb = createSchemaBuilder<{ pk: number; sk: number; age: number }>();
+const tsb = schemaBuilder<{ pk: number; sk: number; age: number }>();
 const tsbm = createModel(
   "schema_builder_model",
-  tsb.add("pk", numberType()).add("sk", numberType()).add("age", numberType()).build(),
+  tsb.add("pk", number()).add("sk", number()).add("age", number()).build(),
 );
 const tsbm2 = createModel("schema_builder_model", tsb);
 
@@ -146,20 +143,20 @@ type CompositeSortKey = CompositeValue<CompositeType>;
 
 const tmb = {} as TupleMapBuilder;
 const tmbv = tmb
-  .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
+  .add("pk", partitionKey(composite((builder) => builder.literal("users#").string())))
   .add("sk", sortKey(10))
   .build();
 type Tmbv = InferTupledMap<typeof tmbv>;
-const schemaT = schemaType(tmbv);
+const schemaT = useSchema(tmbv);
 
 const parentSchema = {} as TupleMapBuilder;
 const childSchema = {} as TupleMapBuilder;
-const parentSchemaType = schemaType(
+const parentSchemaType = useSchema(
   parentSchema
     .add(
       "child",
-      schemaType(
-        childSchema.add("pk", numberType()).add("sk", numberType()).add("gsi1", numberType()).build(),
+      useSchema(
+        childSchema.add("pk", number()).add("sk", number()).add("gsi1", number()).build(),
         // .add("gsi2", numberType())
         // .add("gsi3", numberType()),
       ),
@@ -189,20 +186,20 @@ type F = ForEachMapValuePrependKey<
  * - ["map", MapAttribute<{ field: number }>]
  * - ["map.field", number]
  */
-const s1 = createSchemaBuilder()
-  .add("pk", partitionKey(numberType()))
+const s1 = schemaBuilder()
+  .add("pk", partitionKey(number()))
   //   .add("sk", sortKey(numberType()))
   //   .add("number", numberType())
   .add(
     "map",
-    mapAttribute(
-      createSchemaBuilder()
-        .add("field", numberType())
-        .add("nestedMap", mapAttribute(createSchemaBuilder().add("field2", numberType()).build()))
+    map(
+      schemaBuilder()
+        .add("field", number())
+        .add("nestedMap", map(schemaBuilder().add("field2", number()).build()))
         .build(),
     ),
   )
-  .add("list", listAttribute(mapAttribute(createSchemaBuilder().add("field", numberType()).build())))
+  .add("list", list(map(schemaBuilder().add("field", number()).build())))
   .build();
 type S1T = InferTupledMap<typeof s1>;
 // type S1T1 = TransformComplexTypeToLeafPathTuple<S1T>;
