@@ -129,7 +129,8 @@ type QueryFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exi
 
 type QueryLogicalOperators = "and" | "or" | "not";
 
-// @TODO: add map, list and set types
+// @TODO: evaluate if necessary and add operators for NOT LEAF keys of map, list and set types
+// @TODO: investigate is is possible to match exactly a "const" type like "value" or "10"
 type AttributeTypesToOperatorsTupledMap = [
   [PartitionKey<any>, "="],
   [SortKey<any>, "=" | "<" | "<=" | ">" | ">=" | "begins_with" | "between"],
@@ -141,9 +142,11 @@ type AttributeTypesToOperatorsTupledMap = [
 ];
 
 type GetAttributeOperatorsByType<T, M> = M extends [infer FT, ...infer R]
-  ? FT extends [T, infer O]
-    ? O
-    : GetAttributeOperatorsByType<T, R>
+  ? FT extends [infer OT, infer O]
+    ? T extends OT
+      ? O
+      : GetAttributeOperatorsByType<T, R>
+    : never
   : never;
 
 type MapLeafKeys<T> = {
@@ -284,14 +287,24 @@ type ExampleUsersEntitySchema = {
 };
 
 type ExamplePostsEntitySchema = {
-  pk: PartitionKey<`posts#${string}`>;
-  sk: SortKey<number>;
+  pk: `posts#${string}`;
+  sk: number;
   publishingDate: Date;
+  authors: Array<{ name: string; rating: number }>;
 };
 
 type ExampleCommentsEntitySchema = {
   pk: PartitionKey<`comments#${string}`>;
   sk: SortKey<`comments#${boolean}`>;
+};
+
+type ExampleCategoriesEntitySchema = {
+  pk: `categories#${string}`;
+  sk: number;
+  metadata: {
+    name: string;
+    description: number;
+  };
 };
 
 type ExampleTableSchema = {
@@ -327,14 +340,6 @@ flatTest("pk = users#some-random-user-id");
 
 const schemaBuilder = {} as unknown as TupleMapBuilder;
 
-type US = TupleMapBuilder<ExampleUsersEntitySchema>;
-const us: US = null as any;
-const usv: TypedTupleMapBuilderCompletedResult = us
-  .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
-  .add("sk", sortKey(compositeType((builder) => builder.literal("users#").number())))
-  .add("age", numberType())
-  .build();
-
 const usersSchema = createSchemaBuilder()
   .add("pk", partitionKey(compositeType((builder) => builder.literal("users#").string())))
   .add("sk", sortKey(numberType()))
@@ -356,21 +361,46 @@ const usersSchema = createSchemaBuilder()
   )
   .build();
 
-const postsSchema = schemaBuilder
+const postsSchema = createSchemaBuilder<ExamplePostsEntitySchema>()
   .add("pk", partitionKey(compositeType((builder) => builder.literal("posts#").string())))
   .add("sk", sortKey(numberType()))
   .add("publishingDate", dateType())
+  .add(
+    "authors",
+    listAttribute(mapAttribute(createSchemaBuilder().add("name", "value").add("rating", numberType()).build())),
+  )
   .build();
 
-const commetnsSchema = schemaBuilder
+// There is a possibility of type missmatch if type is provided for a nested schema
+const commentUsersSchema = createSchemaBuilder<{ username: string; postedAt: number }>()
+  .add("username", "value")
+  .add("postedAt", numberType())
+  .build();
+const commetnsSchema = createSchemaBuilder()
   .add("pk", partitionKey(compositeType((builder) => builder.literal("comments#").string())))
   .add("sk", sortKey(compositeType((builder) => builder.literal("comments#").boolean())))
+  .add("users", listAttribute(mapAttribute(commentUsersSchema)))
+  .build();
+
+const categoriesSchema = createSchemaBuilder<ExampleCategoriesEntitySchema>()
+  .add("pk", partitionKey(compositeType((builder) => builder.literal("categories#").string())))
+  .add("sk", sortKey(numberType()))
+  .add(
+    "metadata",
+    mapAttribute(
+      createSchemaBuilder<{ name: string; description: number }>()
+        .add("name", "value")
+        .add("description", numberType())
+        .build(),
+    ),
+  )
   .build();
 
 const schema = schemaBuilder
   .add("users", schemaType(usersSchema))
   .add("posts", schemaType(postsSchema))
   .add("comments", schemaType(commetnsSchema))
+  .add("categories", schemaType(categoriesSchema))
   .build();
 
 type SchemaType = InferTupledMap<typeof schema>;
@@ -418,10 +448,21 @@ builder
       eb("address.city.name", "=", "New York"),
       eb("address.zip", "=", 12345),
       eb("cards.[0].last4", "=", 1234),
+      eb<"posts">("authors.[0].name", "=", "some author"),
+      eb("authors.[0].rating", "=", 1),
+      eb("users.[0].username", "=", "value"),
+      eb<"comments">("users.[0].postedAt", "=", 1),
+      eb("metadata.name", "=", "value"),
+      eb<"categories">("metadata.description", "=", 1),
 
       // should not work
       eb("publishingDate", ">", 1),
       eb("way", "begins_with", "a"),
+      eb<"users">("authors.[0].rating", "=", 1),
+      eb("users.[0].username", "=", "not_value"),
+      eb<"comments">("users.[0].postedAt2", "=", 1),
+      eb<"categories">("metadata.description", "=", "1"),
+      eb("metadata.name", "=", 1),
     ]),
   );
 
