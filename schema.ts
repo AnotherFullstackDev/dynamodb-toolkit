@@ -61,6 +61,41 @@ export type ExtractTupleMapBuilderResultFromSingleValue<T> = T extends Attribute
   ? Attribute<A, ExtractTupleMapBuilderResultFromSingleValue<ExtractAttributeValueType<V>>>
   : T;
 
+export type ExtractOriginalTypeFromSingleValue<T> = T extends Attribute<infer A, infer V>
+  ? ExtractOriginalTypeFromSingleValue<
+      // Seems that even if the tupleMapBuilderResult uses another type under the hood we still need to check for that type.
+      // Probably it is so because we create a new type inside with intersection operator
+      V extends TupleMapBuilderResult<infer RI> ? RI : V extends TupleMapBuilderOriginalInterface<infer OI> ? OI : V
+    > extends infer ET
+    ? A extends "LIST"
+      ? Array<ET>
+      : ET
+    : never
+  : T;
+
+/**
+ * A small "hack" to get types combined via intersection into one interface.
+ * The goas in to improve readability of the final interface
+ *
+ * @example
+ * ```typescript
+ * type SeveralInterfaces = {one: string} & {two: number};
+ * type Final = ReconstructInterfaces<SeveralInterfaces>; // => {one: string; two: number}
+ * ```
+ */
+// @TODO: renave to reflect its goal
+export type ReconstructInterfaces<T> = T extends object
+  ? {
+      [K in keyof T]: ExtractOriginalTypeFromSingleValue<T[K]> extends infer ET
+        ? ET extends object
+          ? ET extends Date
+            ? ET
+            : ReconstructInterfaces<ET>
+          : ET
+        : never;
+    }
+  : T;
+
 export type NotTypedTupleMapBuilder<
   I extends Record<string, unknown> = Record<string, unknown>,
   T extends TupleKeyValuePeer<string, unknown>[] = [],
@@ -70,6 +105,7 @@ export type NotTypedTupleMapBuilder<
     value: V,
   ): NotTypedTupleMapBuilder<
     I & Record<K, V>,
+    // ReconstructInterfaces<I & Record<K, ExtractOriginalTypeFromSingleValue<V>>>,
     [...T, TupleKeyValuePeer<K, ExtractTupleMapBuilderResultFromSingleValue<V>>]
   >;
 
@@ -106,6 +142,7 @@ export type InferTupledMap<T> = T extends TupleMapBuilderResult<infer I, infer T
 //   : T extends TypedTupleMapBuilderCompletedResult<infer M>
 //   ? M
 //   : never;
+export type InferTupleMapInterface<T> = T extends TupleMapBuilderOriginalInterface<infer I> ? I : never;
 
 export type CompositeValue<T> = T extends [infer FT, ...infer R]
   ? `${FT extends string | number | boolean | bigint | null | undefined ? FT : FT & string}${CompositeValue<R>}`

@@ -14,19 +14,10 @@ import {
   sortKey,
   TupleMapBuilderResult,
   string,
+  InferTupleMapInterface,
+  TransformTypeToSchemaBuilderInterface,
+  ReconstructInterfaces,
 } from "./schema";
-
-type PreventEmptyObject<T> = keyof T extends never ? never : T;
-
-type PickByValue<T, ValueType> = PreventEmptyObject<
-  Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? never : Key }[keyof T]>
->;
-
-type OmitByValue<T, ValueType> = PreventEmptyObject<
-  Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? Key : never }[keyof T]>
->;
-
-type SingleOrArray<T> = T | T[];
 
 export type Attribute<A, T> = { attributeType: A; dataType: T };
 
@@ -36,22 +27,12 @@ export type PartitionKey<T extends IndexAttributeValueTypes> = Attribute<"PARTIT
 
 export type SortKey<T extends IndexAttributeValueTypes> = Attribute<"SORT_KEY", T>;
 
-type PrimaryKeyAttributes<T> = PickByValue<
-  T,
-  PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
->;
-
-type NonPrimaryKeyAttributes<T> = OmitByValue<
-  T,
-  PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
->;
-
 type EntitySchema<K extends string | number | symbol> = Record<
   K,
   string | number | bigint | boolean | null | undefined | Date | Attribute<string, unknown>
 >;
 
-type NormalOrIndexAttributeDataType<T> = T extends Attribute<string, infer U> ? U : T;
+type InferOriginalOrAttributeDataType<T> = T extends Attribute<string, infer U> ? U : T;
 
 // Not sure if it makes sense to have this type stricter as `F extends keyof S`
 // type ComparisonOperatorDefinition<F extends string | number | symbol, O extends string, S extends EntitySchema<F>> = {
@@ -62,12 +43,12 @@ type ComparisonOperatorDefinition<
 > = {
   field: F;
   operator: O;
-  value: NormalOrIndexAttributeDataType<S[F]>;
+  value: InferOriginalOrAttributeDataType<S[F]>;
 };
 
 // The type might be make stricter by accepting the operator as a generic type parameter. It might help during implementation of the builder.
 type LogicalOperatorDefinition = {
-  operator: QueryLogicalOperators;
+  operator: LogicalOperators;
   conditions: Array<ComparisonOperatorDefinition<string, string, EntitySchema<string>> | LogicalOperatorDefinition>;
 };
 
@@ -90,6 +71,7 @@ type TupleKeys<T> = T extends [infer FT, ...infer R]
   : never;
 
 type TupleKey<T> = T extends [infer K, infer V] ? K : never;
+
 type TupleValue<T> = T extends [infer K, infer V] ? V : never;
 
 type TupleValues<T> = T extends [infer FT, ...infer R]
@@ -109,7 +91,7 @@ type TupleKeyedEntitySchema = TupleKeyValuePeer<
   [TupleKeyValuePeer<string, unknown>, ...TupleKeyValuePeer<string, unknown>[]]
 >;
 
-type TupleKeyedEntityScheams = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];
+type TupleKeyedEntitySchemas = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];
 
 type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends string> = <
   LN extends N, // necessary to make the model names generics work
@@ -117,32 +99,35 @@ type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends s
 >(
   field: F,
   operator: O,
-  value: NormalOrIndexAttributeDataType<S[F]>,
+  value: InferOriginalOrAttributeDataType<S[F]>,
 ) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, S>>;
 
 type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
-  operator: QueryLogicalOperators,
-  ...conditions: ComparisonOperatorDefinition<F, QueryComparisonOperators, S>[]
+  operator: LogicalOperators,
+  ...conditions: ComparisonOperatorDefinition<F, ComparisonOperators, S>[]
 ) => OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
-type QueryComparisonOperators = "=" | "<>" | "<" | "<=" | ">" | ">=" | "begins_with" | "between" | "in";
+type ComparisonOperators = "=" | "<>" | "<" | "<=" | ">" | ">=" | "begins_with" | "between" | "in";
 
-type QueryFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exists" | "contains" | "size";
+type ComparisonFunctions = "attribute_type" | "attribute_exists" | "attribute_not_exists" | "contains" | "size";
 
-type QueryLogicalOperators = "and" | "or" | "not";
+type LogicalOperators = "and" | "or" | "not";
 
 // @TODO: evaluate if necessary and add operators for NOT LEAF keys of map, list and set types
 // @TODO: investigate is is possible to match exactly a "const" type like "value" or "10"
 type AttributeTypesToOperatorsTupledMap = [
   [PartitionKey<any>, "="],
   [SortKey<any>, "=" | "<" | "<=" | ">" | ">=" | "begins_with" | "between"],
-  [string, QueryComparisonOperators | QueryFunctions],
-  [number, QueryComparisonOperators | QueryFunctions],
-  [bigint, QueryComparisonOperators | QueryFunctions],
-  [boolean, QueryComparisonOperators | QueryFunctions],
-  [Date, QueryComparisonOperators | QueryFunctions],
+  [string, ComparisonOperators | ComparisonFunctions],
+  [number, ComparisonOperators | ComparisonFunctions],
+  [bigint, ComparisonOperators | ComparisonFunctions],
+  [boolean, ComparisonOperators | ComparisonFunctions],
+  [Date, ComparisonOperators | ComparisonFunctions],
 ];
 
+/**
+ * The generic extracts "value type" from a "tupled schema" by checking if the provided type is a subtype of the one from the schema
+ */
 type GetAttributeOperatorsByType<T, M> = M extends [infer FT, ...infer R]
   ? FT extends [infer OT, infer O]
     ? T extends OT
@@ -150,38 +135,6 @@ type GetAttributeOperatorsByType<T, M> = M extends [infer FT, ...infer R]
       : GetAttributeOperatorsByType<T, R>
     : never
   : never;
-
-type MapLeafKeys<T> = {
-  [K in keyof T]: T[K] extends object ? `${K & string}.${MapLeafKeys<T[K]>}` : `${K & string}`;
-}[keyof T];
-// Get leaf keys from an object with value types
-// Get leaf keys from an object with value types togather with corresponding type as a tuple
-
-// type LeafKeysWithTypes<T> = {
-//   [K in keyof T]: T[K] extends infer V ? (V extends string ? [Record<K, V>] : LeafKeysWithTypes<V>) : never;
-// }[keyof T];
-
-type LeafKeysWithTypes<T, P = unknown> = {
-  [K in keyof T]: T[K] extends object
-    ? LeafKeysWithTypes<T[K], P extends string ? `${P}.${K & string}` : K>
-    : [P extends string ? `${P}.${K & string}` : K, T[K]];
-}[keyof T];
-
-// type LeafKeysWithTypesTuple<T> = TupleKeyValuePeer<LeafKeysWithTypes<T>[0], LeafKeysWithTypes<T>[1]>;
-
-type RandomObject = {
-  a: number;
-  b: string;
-  c: {
-    a: boolean;
-    d: {
-      g: string;
-    };
-  };
-};
-
-type T = LeafKeysWithTypes<RandomObject>;
-const T: T = ["c.d.g", "sdad"];
 
 // A tuple attribute can be created based on the list type
 // export type ListAttribute<T> = Attribute<"LIST", T[]>;
@@ -247,19 +200,20 @@ type PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<T> = T extends [i
     : never
   : T;
 
-type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
+// type ConditionExpressionBuilder<S extends TupleKeyedEntitySchemas> = (
+type ConditionExpressionBuilder<S> = (
   expressionBuilder: OverloadableComparisonFactory<S>,
 
   // @TODO: add possibility to target specific entity type via generic parameter
   // Awaits for the results of first usage and a feedback on usefulness on targeting a specific type in the condition expression
   logicalOperators: {
-    [LK in QueryLogicalOperators]: (
+    [LK in LogicalOperators]: (
       conditions: Array<
         // @TODO: fix schema types for the logical conditions section
         // | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, QueryComparisonOperators, S>>
         | OperatorDefinition<
             "conditional",
-            ComparisonOperatorDefinition<string, QueryComparisonOperators | QueryFunctions, EntitySchema<string>>
+            ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
           >
         | OperatorDefinition<"logical", LogicalOperatorDefinition>
       >,
@@ -267,24 +221,146 @@ type ConditionExpressionBuilder<S extends TupleKeyedEntityScheams> = (
   },
 ) => any;
 
-type QueryOperationBuilder<S extends TupleKeyedEntityScheams> = {
+// type InferProjectionFieldsFromSchemas<T extends TupleKeyedEntitySchemas> = TupleKeys<TupleValues<InferTupledMap<T>>>;
+type InferProjectionFieldsFromSchemas<T> = TupleKeys<TupleValues<ForEachMapValuePrependKey<InferTupledMap<T>>>>;
+
+type ReturnConsumedCapacityValues = "INDEXES" | "TOTAL" | "NONE";
+
+type TransformTableSchemaIntoSchemaInterfacesMap<T> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? [[K, ReconstructInterfaces<InferTupleMapInterface<S>>], ...TransformTableSchemaIntoSchemaInterfacesMap<R>]
+    : never
+  : T;
+
+type TransformTableSchemaIntoTupleSchemasMap<T> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? [[K, ForEachMapValuePrependKey<InferTupledMap<S>>], ...TransformTableSchemaIntoTupleSchemasMap<R>]
+    : never
+  : T;
+
+// type QueryOperationBuilder<S extends TupleKeyedEntitySchemas> = {
+type QueryOperationBuilder<S> = {
   keyCondition: (
     builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
   ) => QueryOperationBuilder<S>;
   filter: (
     builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
   ) => QueryOperationBuilder<S>;
+  projection: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => QueryOperationBuilder<S>;
+  offset: (offset: number) => QueryOperationBuilder<S>;
+  limit: (limit: number) => QueryOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => QueryOperationBuilder<S>;
 };
 
-type QueryBuilder<S extends TupleKeyedEntityScheams> = {
-  query: () => QueryOperationBuilder<S>;
+type ScanOperationBuilder<S> = {
+  filter: (builder: ConditionExpressionBuilder<S>) => ScanOperationBuilder<S>;
+  projection: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => ScanOperationBuilder<S>;
+  offset: (offset: number) => ScanOperationBuilder<S>;
+  limit: (limit: number) => ScanOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => ScanOperationBuilder<S>;
 };
 
-type Builder<S extends TupleKeyedEntityScheams> = QueryBuilder<S>;
+type GetItemOperationBuilder<S> = {
+  key: (
+    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
+  ) => GetItemOperationBuilder<S>;
+  // @TODO: projection can include nested fields - check it!
+  projection: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => GetItemOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => GetItemOperationBuilder<S>;
+};
 
-const queryBuilder = <S extends TupleMapBuilderResult<unknown, TupleKeyedEntityScheams>>(): Builder<
-  InferTupledMap<S>
-> => null as unknown as Builder<InferTupledMap<S>>;
+/**
+ * NOTE:
+ * For data change operations there is no sence to make generic functions that can work with several items
+ * because each operation can work with only one item at a time
+ */
+
+/**
+ * @param S - Tuple of entity schema interfaces as [[string, Record<string, unknown>]]
+ */
+type PutOperationItemsBuilder<T, S> = S extends [infer F, ...infer R]
+  ? (F extends [infer K, infer I] ? { [LK in `${K & string}Item`]: (value: I) => PutOperationBuilder<T> } : never) &
+      PutOperationItemsBuilder<T, R>
+  : S extends []
+  ? {}
+  : S;
+
+type PutOperationAdditionalParamsBuilder<S> = {
+  condition: (
+    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
+  ) => PutOperationBuilder<S>;
+  throwIfExists: () => PutOperationBuilder<S>;
+  returnValues(value: "ALL_NEW" | "ALL_OLD"): PutOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => PutOperationBuilder<S>;
+  returnItemCollectionMetrics: (value: "SIZE") => PutOperationBuilder<S>;
+};
+
+type PutOperationBuilder<S> = PutOperationItemsBuilder<S, TransformTableSchemaIntoSchemaInterfacesMap<S>> &
+  PutOperationAdditionalParamsBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
+
+type DeepPartial<T> = T extends object
+  ? T extends Date
+    ? T
+    : {
+        [P in keyof T]?: T[P] extends Array<infer U>
+          ? Array<DeepPartial<U>>
+          : T[P] extends ReadonlyArray<infer U>
+          ? ReadonlyArray<DeepPartial<U>>
+          : DeepPartial<T[P]>;
+      }
+  : T;
+
+type UpdateOperationBuilder<S> = {
+  key: (
+    builder: ConditionExpressionBuilder<
+      PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<TransformTableSchemaIntoTupleSchemasMap<S>>
+    >,
+  ) => UpdateOperationBuilder<S>;
+  set: (value: DeepPartial<TransformTableSchemaIntoSchemaInterfacesMap<S>>) => UpdateOperationBuilder<S>;
+  remove: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateOperationBuilder<S>;
+  // TODO: currently  ADD is not supported because it works only with specific field types what requires additional work to implement it
+  // add: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateOperationBuilder<S>;
+  delete: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateOperationBuilder<S>;
+  condition: (
+    builder: ConditionExpressionBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
+  ) => UpdateOperationBuilder<S>;
+  returnValues(value: "ALL_NEW" | "ALL_OLD" | "UPDATED_NEW" | "UPDATED_OLD"): UpdateOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => UpdateOperationBuilder<S>;
+  returnItemCollectionMetrics: (value: "SIZE") => UpdateOperationBuilder<S>;
+};
+
+type DeleteOperationBuilder<S> = {
+  key: (
+    builder: ConditionExpressionBuilder<
+      PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<TransformTableSchemaIntoTupleSchemasMap<S>>
+    >,
+  ) => DeleteOperationBuilder<S>;
+  condition: (
+    builder: ConditionExpressionBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
+  ) => DeleteOperationBuilder<S>;
+  returnValues(value: "ALL_OLD"): DeleteOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => DeleteOperationBuilder<S>;
+  returnItemCollectionMetrics: (value: "SIZE") => DeleteOperationBuilder<S>;
+};
+
+// type QueryBuilder<S extends TupleKeyedEntitySchemas> = {
+//   // type QueryBuilder<S> = {
+//   query: () => QueryOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
+// };
+
+// type Builder<S extends TupleKeyedEntitySchemas> = QueryBuilder<S>;
+type Builder<S> = {
+  query: () => QueryOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
+  scan: () => ScanOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
+  get: () => GetItemOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
+  put: () => PutOperationBuilder<S>;
+  update: () => UpdateOperationBuilder<S>;
+  delete: () => DeleteOperationBuilder<S>;
+};
+
+// const queryBuilder = <S extends TupleMapBuilderResult<unknown, TupleKeyedEntitySchemas>>(): Builder<
+const queryBuilder = <S extends TupleMapBuilderResult<unknown, unknown>>(): Builder<InferTupledMap<S>> =>
+  null as unknown as Builder<InferTupledMap<S>>;
 
 type ExampleUsersEntitySchema = {
   pk: PartitionKey<`users#${string}`>;
@@ -313,12 +389,6 @@ type ExampleCategoriesEntitySchema = {
   };
 };
 
-type ExampleTableSchema = {
-  users: ExampleUsersEntitySchema;
-  posts: ExamplePostsEntitySchema;
-  comments: ExampleCommentsEntitySchema;
-};
-
 /**
  * Experiment with fully string condition
  *
@@ -330,14 +400,14 @@ type ExampleTableSchema = {
  * - Hard to pass runtime data;
  */
 type SimpleStringCondition<T extends EntitySchema<string>, O extends string, K extends keyof T> = `${K &
-  string} ${O} ${NormalOrIndexAttributeDataType<T[K]> & (string | number | boolean)}`;
+  string} ${O} ${InferOriginalOrAttributeDataType<T[K]> & (string | number | boolean)}`;
 
 type SimpleStringConditionFn<T extends EntitySchema<string>> = <K extends keyof T>(
   condition: T[K] extends PartitionKey<IndexAttributeValueTypes>
     ? SimpleStringCondition<T, "=", K>
     : T[K] extends SortKey<IndexAttributeValueTypes>
-    ? SimpleStringCondition<T, Exclude<QueryComparisonOperators, "!=" | "between" | "in">, K>
-    : SimpleStringCondition<T, QueryComparisonOperators, K>,
+    ? SimpleStringCondition<T, Exclude<ComparisonOperators, "!=" | "between" | "in">, K>
+    : SimpleStringCondition<T, ComparisonOperators, K>,
 ) => any;
 
 const flatTest = null as unknown as SimpleStringConditionFn<ExampleUsersEntitySchema>;
@@ -398,10 +468,33 @@ const schema = schemaBuilder()
   .add("categories", useSchema(categoriesSchema))
   .build();
 
-// type SchemaType = InferTupledMap<typeof schema>;
-// const builder = {} as unknown as Builder<SchemaType>;
+const schemaV2 = schemaBuilder()
+  .add("users", usersSchema)
+  .add("posts", postsSchema)
+  .add("comments", commetnsSchema)
+  .add("categories", categoriesSchema)
+  .build();
 
-queryBuilder<typeof schema>()
+type SchemaV2Type = InferTupledMap<typeof schemaV2>;
+type SchemaV2 = TransformTableSchemaIntoSchemaInterfacesMap<SchemaV2Type>;
+type ShcmeaKyeConditions = KeyConditionBuilder<SchemaV2>;
+const schemaKeyConditions = {} as ShcmeaKyeConditions;
+schemaKeyConditions.postsItem({
+  pk: "posts#some",
+  sk: 0,
+  publishingDate: new Date(),
+  authors: [{ name: "some author", rating: 1 }],
+});
+
+type OriginalPostsType = Omit<TransformTypeToSchemaBuilderInterface<ExamplePostsEntitySchema>, "publishingDate">;
+
+type UsersSchemaInterface = ReconstructInterfaces<InferTupleMapInterface<typeof usersSchema>>;
+type PostsSchemaInterface = ReconstructInterfaces<InferTupleMapInterface<typeof postsSchema>>;
+type TableInterface = InferTupleMapInterface<typeof schema>;
+type SchemaType = InferTupledMap<typeof schema>;
+const builder = {} as unknown as Builder<SchemaType>;
+
+queryBuilder<typeof schemaV2>()
   .query()
   .keyCondition((eb, { or, and }) =>
     or([
@@ -494,7 +587,7 @@ const userEntitySchema = schemaBuilder()
   .add("dob", date())
   .build();
 
-const tableSchema = schemaBuilder().add("users", useSchema(userEntitySchema)).build();
+const tableSchema = schemaBuilder().add("users", userEntitySchema).build();
 
 const qb = queryBuilder<typeof tableSchema>();
 
@@ -503,3 +596,14 @@ qb.query()
   .filter((eb, { or }) =>
     or([eb("name", "begins_with", "bob"), eb("age", ">", 18), eb("dob", ">", new Date("2007-01-01"))]),
   );
+
+qb.put().usersItem({
+  id: "users#some-random-user-id",
+  name: "",
+  age: 0,
+  dob: new Date(),
+});
+
+qb.get()
+  .key((eb) => eb("id", "=", "users#some-random-user-id"))
+  .projection(["name", "age"]);
