@@ -11,7 +11,7 @@ import {
   TupleMapBuilderResult,
   composite,
   createModel,
-  schemaBuilder,
+  schema,
   list,
   map,
   number,
@@ -63,7 +63,7 @@ type T = {
 const t0 = {
   name: "string",
   address: map(
-    schemaBuilder<{
+    schema<{
       zip: number;
       building: {
         number: number;
@@ -76,59 +76,59 @@ const t0 = {
       .add(
         "building",
         map(
-          schemaBuilder<{
+          schema<{
             number: number;
             additionalInfo: {
               comment: number;
             };
           }>()
             .add("number", number())
-            .add("additionalInfo", map(schemaBuilder().add("comment", number()).build()))
+            .add("additionalInfo", map(schema().add("comment", number()).build()))
             .build(),
         ),
       )
       .build(),
   ),
-  cards: list(map(schemaBuilder<{ last4: string }>().add("last4", "string").build())),
+  cards: list(map(schema<{ last4: string }>().add("last4", "string").build())),
 };
-const t1 = schemaBuilder<T>()
+const t1 = schema<T>()
   .add("name", "value")
   .add(
     "address",
     map(
-      schemaBuilder()
+      schema()
         .add("zip", number())
         .add(
           "building",
           map(
-            schemaBuilder()
+            schema()
               .add("number", number())
-              .add("additionalInfo", map(schemaBuilder().add("comment", number()).build()))
+              .add("additionalInfo", map(schema().add("comment", number()).build()))
               .build(),
           ),
         )
         .build(),
     ),
   )
-  .add("cards", list(map(schemaBuilder().add("last4", "string").build())))
+  .add("cards", list(map(schema().add("last4", "string").build())))
   .build();
 
 type T3 = { nestedList: { value: number }[] };
-const t3s = schemaBuilder<{ value: number }>().add("value", number()).build();
-const t3 = schemaBuilder<T3>()
+const t3s = schema<{ value: number }>().add("value", number()).build();
+const t3 = schema<T3>()
   .add("nestedList", list(map(t3s)))
   .build();
 
-schemaBuilder<T3>().add("nestedList", list(map(schemaBuilder().add("value", number()).build())));
+schema<T3>().add("nestedList", list(map(schema().add("value", number()).build())));
 
 type T4 = { nestedList: { value: number } };
-const t4 = schemaBuilder<T3>().add("nestedList", map(t3s)).build();
+const t4 = schema<T3>().add("nestedList", map(t3s)).build();
 
-const sb = schemaBuilder();
+const sb = schema();
 const sbs = sb.add("pk", number()).add("sk", number()).add("age", number()).build();
 const sbm = createModel("schema_builder_model", sbs);
 
-const tsb = schemaBuilder<{ pk: number; sk: number; age: number }>();
+const tsb = schema<{ pk: number; sk: number; age: number }>();
 const tsbm = createModel(
   "schema_builder_model",
   tsb.add("pk", number()).add("sk", number()).add("age", number()).build(),
@@ -186,20 +186,20 @@ type F = ForEachMapValuePrependKey<
  * - ["map", MapAttribute<{ field: number }>]
  * - ["map.field", number]
  */
-const s1 = schemaBuilder()
+const s1 = schema()
   .add("pk", partitionKey(number()))
   //   .add("sk", sortKey(numberType()))
   //   .add("number", numberType())
   .add(
     "map",
     map(
-      schemaBuilder()
+      schema()
         .add("field", number())
-        .add("nestedMap", map(schemaBuilder().add("field2", number()).build()))
+        .add("nestedMap", map(schema().add("field2", number()).build()))
         .build(),
     ),
   )
-  .add("list", list(map(schemaBuilder().add("field", number()).build())))
+  .add("list", list(map(schema().add("field", number()).build())))
   .build();
 type S1T = InferTupledMap<typeof s1>;
 // type S1T1 = TransformComplexTypeToLeafPathTuple<S1T>;

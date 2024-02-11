@@ -1,5 +1,4 @@
 import {
-  TupleKeyValuePeer,
   IndexAttributeValueTypes,
   PartitionKey,
   SortKey,
@@ -8,7 +7,8 @@ import {
   SetAttribute,
   SetAttributeValueTypes,
   Attribute,
-} from "./query";
+} from "./attribute";
+import { ConcatenateArrays } from "./utility-types";
 
 export type TransformTypeToSchemaBuilderInterface<T> = {
   [K in keyof T]: T[K] extends Record<string, unknown>
@@ -192,7 +192,7 @@ export const createModel = <N extends string, M extends TupleMapBuilderResult>(
   model: M,
 ): TupleKeyValuePeer<N, InferTupledMap<M>> => [name, model as any];
 
-export const schemaBuilder = <I extends Record<string, unknown> = TupleMapBuilderUnknownInterface>(): TupleMapBuilder<
+export const schema = <I extends Record<string, unknown> = TupleMapBuilderUnknownInterface>(): TupleMapBuilder<
   I extends TupleMapBuilderUnknownInterface ? I : TransformTypeToSchemaBuilderInterface<I>
 > => ({} as any);
 
@@ -219,12 +219,124 @@ export type ForEachMapValuePrependKey<T, K extends string = ""> = T extends [inf
   ? F extends [infer FK, infer FV]
     ? [
         [ConcatenateKeys<[K, FK]>, FV],
+
         ...(FV extends Attribute<"MAP", [...TupleKeyValuePeer<string, unknown>[]]>
           ? ForEachMapValuePrependKey<InferAttributeValue<FV>, ConcatenateKeys<[K, FK]>>
           : FV extends Attribute<"LIST", infer LT>
           ? ForEachMapValuePrependKey<[[`[${number}]`, LT]], ConcatenateKeys<[K, FK]>>
-          : [[ConcatenateKeys<[K, FK]>, FV]]),
+          : []),
+        // : [[ConcatenateKeys<[K, FK]>, FV]]),
+
         ...ForEachMapValuePrependKey<R, K>,
       ]
     : F
   : T;
+
+export type TransformTableSchemaIntoSchemaInterfacesMap<T> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? [[K, ReconstructInterfaces<InferTupleMapInterface<S>>], ...TransformTableSchemaIntoSchemaInterfacesMap<R>]
+    : never
+  : T;
+
+export type TransformTableSchemaIntoTupleSchemasMap<T> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? [[K, ForEachMapValuePrependKey<InferTupledMap<S>>], ...TransformTableSchemaIntoTupleSchemasMap<R>]
+    : never
+  : T;
+
+export type FilterTupleSchemasByType<T, P> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer V]
+    ? P extends V
+      ? [F, ...FilterTupleSchemasByType<R, P>]
+      : FilterTupleSchemasByType<R, P>
+    : never
+  : T;
+
+export type FilterTableSchemaFieldsByType<T, P> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? FilterTupleSchemasByType<S, P> extends infer FR
+      ? FR extends []
+        ? FilterTableSchemaFieldsByType<R, P>
+        : [[K, FR], ...FilterTableSchemaFieldsByType<R, P>]
+      : never
+    : never
+  : T;
+
+export type ExtractKeysFromTupleSchemas<T> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer V]
+    ? [K, ...ExtractKeysFromTupleSchemas<R>]
+    : never
+  : T;
+
+export type ExtractEntityKeysFromTableSchema<S> = S extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? ConcatenateArrays<ExtractKeysFromTupleSchemas<S>, ExtractEntityKeysFromTableSchema<R>>
+    : F
+  : S;
+
+export type PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<T> = T extends [infer AttributeTuple, ...infer R]
+  ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+    ? [
+        [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],
+        ...PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<R>,
+      ]
+    : PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<R>
+  : T;
+
+export type PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<T> = T extends [infer Model, ...infer R]
+  ? Model extends [infer K, infer L]
+    ? [
+        [K, PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<L>],
+        ...PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<R>,
+      ]
+    : never
+  : T;
+
+export type PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<T> = T extends [infer AttributeTuple, ...infer R]
+  ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+    ? PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<R>
+    : [
+        [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],
+        ...PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<R>,
+      ]
+  : T;
+
+export type PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<T> = T extends [infer Model, ...infer R]
+  ? Model extends [infer K, infer L]
+    ? [
+        [K, PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<L>],
+        ...PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<R>,
+      ]
+    : never
+  : T;
+
+export type TupleKeyValuePeer<T extends string | number | symbol, V> = [T, V];
+
+export type TupleKeys<T> = T extends [infer FT, ...infer R]
+  ? FT extends [infer K, infer V]
+    ? K | TupleKeys<R>
+    : never
+  : never;
+
+export type TupleKey<T> = T extends [infer K, infer V] ? K : never;
+
+export type TupleValue<T> = T extends [infer K, infer V] ? V : never;
+
+export type TupleValues<T> = T extends [infer FT, ...infer R]
+  ? FT extends [infer K, infer V]
+    ? V | TupleValues<R>
+    : never
+  : never;
+
+export type TupleValueByKey<T, K> = T extends [infer FT, ...infer R]
+  ? FT extends [K, infer V]
+    ? V
+    : TupleValueByKey<R, K>
+  : never;
+
+export type TupleKeyedEntitySchema = TupleKeyValuePeer<
+  string,
+  [TupleKeyValuePeer<string, unknown>, ...TupleKeyValuePeer<string, unknown>[]]
+>;
+
+export type TupleKeyedEntitySchemas = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];

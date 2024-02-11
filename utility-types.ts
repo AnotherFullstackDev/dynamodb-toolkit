@@ -9,3 +9,21 @@ export type OmitByValue<T, ValueType> = PreventEmptyObject<
 >;
 
 export type SingleOrArray<T> = T | T[];
+
+export type DeepPartial<T> = T extends object
+  ? T extends Date
+    ? T
+    : {
+        [P in keyof T]?: T[P] extends Array<infer U>
+          ? Array<DeepPartial<U>>
+          : T[P] extends ReadonlyArray<infer U>
+          ? ReadonlyArray<DeepPartial<U>>
+          : DeepPartial<T[P]>;
+      }
+  : T;
+
+export type CombineArrayElementsViaUnion<T> = T extends [infer E, ...infer R]
+  ? E | CombineArrayElementsViaUnion<R>
+  : never;
+
+export type ConcatenateArrays<T, A> = [...(T extends [...infer U] ? U : [T]), ...(A extends [...infer AE] ? AE : [A])];
