@@ -1,0 +1,26 @@
+// @TODO: for operations that work with a single item we can restrict the key condition to achieve the following:
+// - use all the available primary keys;
+
+import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
+import { ConditionExpressionBuilder } from "./query";
+import { PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList } from "./schema";
+
+type GetIndividualItemOperationBuilder<S> = {
+  key: (
+    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
+  ) => GetIndividualItemOperationBuilder<S>;
+  // @TODO: projection can include nested fields - check it!
+  projection: (fields: InferProjectionFieldsFromSchemas<S>) => GetIndividualItemOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => GetIndividualItemOperationBuilder<S>;
+};
+
+export type GetItemOperationBuilder<S> = S extends [infer F, ...infer R]
+  ? (F extends [infer K, infer S]
+      ? {
+          [LK in `${K & string}Item`]: () => GetIndividualItemOperationBuilder<[[K, S]]>;
+        }
+      : F) &
+      GetItemOperationBuilder<R>
+  : S extends []
+  ? {}
+  : S;

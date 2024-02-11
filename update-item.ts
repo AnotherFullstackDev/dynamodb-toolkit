@@ -7,6 +7,7 @@ import {
   ForEachMapValuePrependKey,
   InferTupledMap,
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
+  RemoveTableSchemaFieldsByType,
   TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
 } from "./schema";
@@ -22,26 +23,13 @@ type AddOperationsToItemInterface<T> = T extends object
     }
   : T;
 
-type SetItemValue<S> = (
-  TransformTableSchemaIntoSchemaInterfacesMap<S> extends infer T
-    ? T extends [infer S]
-      ? S extends [infer K, infer V]
-        ? V
-        : S
-      : T
-    : never
+type SetItemValue<S, TS> = (
+  S extends infer T ? (T extends [infer S] ? (S extends [infer K, infer V] ? V : S) : T) : never
 ) extends infer I
   ? Omit<
       I,
       CombineArrayElementsViaUnion<
-        ConcatenateArrays<
-          ExtractEntityKeysFromTableSchema<
-            FilterTableSchemaFieldsByType<TransformTableSchemaIntoTupleSchemasMap<S>, PartitionKey<any>>
-          >,
-          ExtractEntityKeysFromTableSchema<
-            FilterTableSchemaFieldsByType<TransformTableSchemaIntoTupleSchemasMap<S>, SortKey<any>>
-          >
-        >
+        ExtractEntityKeysFromTableSchema<FilterTableSchemaFieldsByType<TS, [PartitionKey<any>, SortKey<any>]>>
       > &
         string
     > extends infer R
@@ -63,6 +51,8 @@ type TransformMapSchemaIntoRecord<T> = (
 
 type MS = TransformMapSchemaIntoRecord<[["field", number], ["field2", string]]>;
 
+// @TODO: seems we might recunstruct the map builder interface from the field tuples
+// Probably it might be used to simplify the typesystem in the future
 type TransformAttributeValueIntoRecord<T> = T extends Attribute<infer A, infer V>
   ? A extends "MAP"
     ? TransformMapSchemaIntoRecord<V>
@@ -139,10 +129,16 @@ type UpdateIndividualItemOperationBuilder<S> = {
     >,
   ) => UpdateIndividualItemOperationBuilder<S>;
   set: (
-    value: SetItemValue<S> | SetValuesBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
+    value:
+      | SetItemValue<TransformTableSchemaIntoSchemaInterfacesMap<S>, TransformTableSchemaIntoTupleSchemasMap<S>>
+      | SetValuesBuilder<
+          RemoveTableSchemaFieldsByType<TransformTableSchemaIntoTupleSchemasMap<S>, [PartitionKey<any>, SortKey<any>]>
+        >,
   ) => UpdateIndividualItemOperationBuilder<S>;
   remove: (
-    fields: InferProjectionFieldsFromSchemas<TransformTableSchemaIntoTupleSchemasMap<S>>,
+    fields: InferProjectionFieldsFromSchemas<
+      RemoveTableSchemaFieldsByType<TransformTableSchemaIntoTupleSchemasMap<S>, [PartitionKey<any>, SortKey<any>]>
+    >,
   ) => UpdateIndividualItemOperationBuilder<S>;
   // TODO: currently ADD and DELETE is not supported because it works only with specific field types what requires additional work to implement it
   // add: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateIndividualItemOperationBuilder<S>;

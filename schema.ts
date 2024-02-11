@@ -246,7 +246,7 @@ export type TransformTableSchemaIntoTupleSchemasMap<T> = T extends [infer F, ...
 
 export type FilterTupleSchemasByType<T, P> = T extends [infer F, ...infer R]
   ? F extends [infer K, infer V]
-    ? P extends V
+    ? MatchesAnyOfTypes<V, P> extends true
       ? [F, ...FilterTupleSchemasByType<R, P>]
       : FilterTupleSchemasByType<R, P>
     : never
@@ -261,6 +261,39 @@ export type FilterTableSchemaFieldsByType<T, P> = T extends [infer F, ...infer R
       : never
     : never
   : T;
+
+export type MatchesAnyOfTypes<T, P> = P extends [infer F, ...infer R]
+  ? T extends F
+    ? true
+    : MatchesAnyOfTypes<T, R>
+  : false;
+
+export type RemoveTupleSchemasByType<T, P> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer V]
+    ? MatchesAnyOfTypes<V, P> extends true
+      ? RemoveTupleSchemasByType<R, P>
+      : [F, ...RemoveTupleSchemasByType<R, P>]
+    : never
+  : T;
+
+export type RemoveTableSchemaFieldsByType<T, P> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? RemoveTupleSchemasByType<S, P> extends infer FR
+      ? FR extends []
+        ? RemoveTableSchemaFieldsByType<R, P>
+        : [[K, FR], ...RemoveTableSchemaFieldsByType<R, P>]
+      : never
+    : never
+  : T;
+
+type TR = RemoveTupleSchemasByType<
+  [["pk", PartitionKey<string>], ["sk", SortKey<number>], ["name", string], ["age", number]],
+  [PartitionKey<any>, SortKey<any>]
+>;
+type TR2 = RemoveTableSchemaFieldsByType<
+  [["users", [["pk", PartitionKey<string>], ["sk", SortKey<number>], ["name", string], ["age", number]]]],
+  [PartitionKey<any>, SortKey<any>]
+>;
 
 export type ExtractKeysFromTupleSchemas<T> = T extends [infer F, ...infer R]
   ? F extends [infer K, infer V]

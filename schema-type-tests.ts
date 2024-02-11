@@ -1,4 +1,4 @@
-import { ListAttribute, MapAttribute, TupleKeyValuePeer } from "./query";
+import { ListAttribute, MapAttribute } from "./attribute";
 import {
   CompositeTypeBuilder,
   CompositeValue,
@@ -18,6 +18,7 @@ import {
   partitionKey,
   useSchema,
   sortKey,
+  TupleKeyValuePeer,
 } from "./schema";
 
 type ET = ExtractTupleMapBuilderResultFromSingleValue<

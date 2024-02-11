@@ -1,40 +1,19 @@
-import {
-  Attribute,
-  IndexAttributeValueTypes,
-  InferOriginalOrAttributeDataType,
-  PartitionKey,
-  SortKey,
-} from "./attribute";
+import { Attribute, InferOriginalOrAttributeDataType, PartitionKey, SortKey } from "./attribute";
+import { DeleteOperationBuilder } from "./delete-item";
+import { GetItemOperationBuilder } from "./get-item";
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
+import { PutOperationBuilder } from "./put-item";
 import {
-  ForEachMapValuePrependKey,
   InferTupledMap,
-  TupleMapBuilder,
-  TypedTupleMapBuilderCompletedResult,
-  composite,
-  schema,
-  date,
-  list,
-  map,
-  number,
-  partitionKey,
-  useSchema,
-  sortKey,
-  TupleMapBuilderResult,
-  string,
-  InferTupleMapInterface,
-  TransformTypeToSchemaBuilderInterface,
-  ReconstructInterfaces,
-  TupleKeyValuePeer,
-  TupleValue,
-  TupleKey,
-  PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
   PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList,
-  TransformTableSchemaIntoSchemaInterfacesMap,
+  PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
   TransformTableSchemaIntoTupleSchemasMap,
+  TupleKey,
+  TupleKeyValuePeer,
+  TupleMapBuilderResult,
+  TupleValue,
 } from "./schema";
 import { UpdateOperationBuilder } from "./update-item";
-import { CombineArrayElementsViaUnion, ConcatenateArrays } from "./utility-types";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -130,7 +109,6 @@ type OverloadableComparisonFactory<T> = T extends [infer EntityTupleSchema, ...i
     : never
   : T;
 
-// type ConditionExpressionBuilder<S extends TupleKeyedEntitySchemas> = (
 export type ConditionExpressionBuilder<S> = (
   expressionBuilder: OverloadableComparisonFactory<S>,
 
@@ -151,7 +129,6 @@ export type ConditionExpressionBuilder<S> = (
   },
 ) => any;
 
-// type QueryOperationBuilder<S extends TupleKeyedEntitySchemas> = {
 type QueryOperationBuilder<S> = {
   keyCondition: (
     builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
@@ -173,91 +150,6 @@ type ScanOperationBuilder<S> = {
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => ScanOperationBuilder<S>;
 };
 
-// @TODO: for operations that work with a single item we can restrict the key condition to achieve the following:
-// - use all the available primary keys;
-// - provide a better type support for the key condition;
-// - for data change operations such types narowing might also be useful and significantly improve type safety;
-
-type GetItemOperationBuilder<S> = S extends [infer F, ...infer R]
-  ? (F extends [infer K, infer S]
-      ? {
-          [LK in `${K & string}Item`]: () => GetIndividualItemOperationBuilder<[[K, S]]>;
-        }
-      : F) &
-      GetItemOperationBuilder<R>
-  : S extends []
-  ? {}
-  : S;
-
-type GetIndividualItemOperationBuilder<S> = {
-  key: (
-    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-  ) => GetIndividualItemOperationBuilder<S>;
-  // @TODO: projection can include nested fields - check it!
-  projection: (fields: InferProjectionFieldsFromSchemas<S>) => GetIndividualItemOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => GetIndividualItemOperationBuilder<S>;
-};
-
-/**
- * NOTE:
- * For data change operations there is no sence to make generic functions that can work with several items
- * because each operation can work with only one item at a time
- */
-
-/**
- * @param S - Tuple of entity schema interfaces as [[string, Record<string, unknown>]]
- */
-type PutOperationItemsBuilder<T, S> = S extends [infer F, ...infer R]
-  ? (F extends [infer K, infer I] ? { [LK in `${K & string}Item`]: (value: I) => PutOperationBuilder<T> } : never) &
-      PutOperationItemsBuilder<T, R>
-  : S extends []
-  ? {}
-  : S;
-
-type PutOperationAdditionalParamsBuilder<S> = {
-  condition: (
-    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-  ) => PutOperationBuilder<S>;
-  throwIfExists: () => PutOperationBuilder<S>;
-  returnValues(value: "ALL_NEW" | "ALL_OLD"): PutOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => PutOperationBuilder<S>;
-  returnItemCollectionMetrics: (value: "SIZE") => PutOperationBuilder<S>;
-};
-
-type PutOperationBuilder<S> = PutOperationItemsBuilder<S, TransformTableSchemaIntoSchemaInterfacesMap<S>> &
-  PutOperationAdditionalParamsBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
-
-type DeleteOperationBuilder<S> = S extends [infer F, ...infer R]
-  ? (F extends [infer K, infer S]
-      ? {
-          [LK in `${K & string}Item`]: () => DeleteIndividualItemOperationBuilder<[[K, S]]>;
-        }
-      : F) &
-      DeleteOperationBuilder<R>
-  : S extends []
-  ? {}
-  : S;
-
-type DeleteIndividualItemOperationBuilder<S> = {
-  key: (
-    builder: ConditionExpressionBuilder<
-      PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<TransformTableSchemaIntoTupleSchemasMap<S>>
-    >,
-  ) => DeleteIndividualItemOperationBuilder<S>;
-  condition: (
-    builder: ConditionExpressionBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
-  ) => DeleteIndividualItemOperationBuilder<S>;
-  returnValues(value: "ALL_OLD"): DeleteIndividualItemOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => DeleteIndividualItemOperationBuilder<S>;
-  returnItemCollectionMetrics: (value: "SIZE") => DeleteIndividualItemOperationBuilder<S>;
-};
-
-// type QueryBuilder<S extends TupleKeyedEntitySchemas> = {
-//   // type QueryBuilder<S> = {
-//   query: () => QueryOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
-// };
-
-// type Builder<S extends TupleKeyedEntitySchemas> = QueryBuilder<S>;
 type Builder<S> = {
   query: () => QueryOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
   scan: () => ScanOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
@@ -267,6 +159,5 @@ type Builder<S> = {
   delete: () => DeleteOperationBuilder<S>;
 };
 
-// const queryBuilder = <S extends TupleMapBuilderResult<unknown, TupleKeyedEntitySchemas>>(): Builder<
 export const queryBuilder = <S extends TupleMapBuilderResult<unknown, unknown>>(): Builder<InferTupledMap<S>> =>
   null as unknown as Builder<InferTupledMap<S>>;

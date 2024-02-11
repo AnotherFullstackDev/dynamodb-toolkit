@@ -251,6 +251,7 @@ qb.update()
   .key((eb) => eb("id", "=", "users#some-random-user-id"))
   .condition((eb) => eb("age", "=", 20))
   .set({
+    id: "users#some",
     name: "new name",
     age: 21,
     dob: new Date(),
@@ -265,7 +266,7 @@ qb.update()
     //   value: [{ last4: 1234, type: "visa" }],
     // },
   })
-  .remove(["name", "age", "cards.[0].last4", "cards.[1].type"])
+  .remove(["name", "age", "cards.[0].last4", "cards.[1].type", "id"])
   .returnValues("ALL_NEW");
 
 qb.update()
@@ -275,7 +276,8 @@ qb.update()
     set("authors.[0]", { name: "some name" }),
     set("authors.[1].name", "new name"),
     set("content", "new content"),
-  ]);
+  ])
+  .remove(["title", "content"]);
 
 qb.delete()
   .usersItem()
