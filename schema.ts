@@ -218,6 +218,7 @@ export type ConcatenateKeys<K extends unknown[], D extends string = "."> = K ext
 export type ForEachMapValuePrependKey<T, K extends string = ""> = T extends [infer F, ...infer R]
   ? F extends [infer FK, infer FV]
     ? [
+        [ConcatenateKeys<[K, FK]>, FV],
         ...(FV extends Attribute<"MAP", [...TupleKeyValuePeer<string, unknown>[]]>
           ? ForEachMapValuePrependKey<InferAttributeValue<FV>, ConcatenateKeys<[K, FK]>>
           : FV extends Attribute<"LIST", infer LT>

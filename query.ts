@@ -222,7 +222,19 @@ type ConditionExpressionBuilder<S> = (
 ) => any;
 
 // type InferProjectionFieldsFromSchemas<T extends TupleKeyedEntitySchemas> = TupleKeys<TupleValues<InferTupledMap<T>>>;
-type InferProjectionFieldsFromSchemas<T> = TupleKeys<TupleValues<ForEachMapValuePrependKey<InferTupledMap<T>>>>;
+// type InferProjectionFieldsFromSchemas<T> = ForEachMapValuePrependKey<InferTupledMap<T>>;
+type ConcatenateArrays<T, A> = [...(T extends [...infer U] ? U : [T]), ...(A extends [...infer AE] ? AE : [A])];
+type SchemaKeys<S> = S extends [infer F, ...infer R] ? (F extends [infer K, infer S] ? [K, ...SchemaKeys<R>] : F) : S;
+type CombineArrayElementsViaUnion<T> = T extends [infer E, ...infer R] ? E | CombineArrayElementsViaUnion<R> : never;
+type InferProjectionFieldsFromSchemas<T> = Array<
+  CombineArrayElementsViaUnion<
+    T extends [infer F, ...infer R]
+      ? F extends [infer K, infer S]
+        ? ConcatenateArrays<SchemaKeys<S>, InferProjectionFieldsFromSchemas<R>>
+        : F
+      : T
+  >
+>;
 
 type ReturnConsumedCapacityValues = "INDEXES" | "TOTAL" | "NONE";
 
@@ -246,7 +258,7 @@ type QueryOperationBuilder<S> = {
   filter: (
     builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
   ) => QueryOperationBuilder<S>;
-  projection: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => QueryOperationBuilder<S>;
+  projection: (fields: InferProjectionFieldsFromSchemas<S>) => QueryOperationBuilder<S>;
   offset: (offset: number) => QueryOperationBuilder<S>;
   limit: (limit: number) => QueryOperationBuilder<S>;
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => QueryOperationBuilder<S>;
@@ -254,19 +266,35 @@ type QueryOperationBuilder<S> = {
 
 type ScanOperationBuilder<S> = {
   filter: (builder: ConditionExpressionBuilder<S>) => ScanOperationBuilder<S>;
-  projection: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => ScanOperationBuilder<S>;
+  projection: (fields: InferProjectionFieldsFromSchemas<S>) => ScanOperationBuilder<S>;
   offset: (offset: number) => ScanOperationBuilder<S>;
   limit: (limit: number) => ScanOperationBuilder<S>;
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => ScanOperationBuilder<S>;
 };
 
-type GetItemOperationBuilder<S> = {
+// @TODO: for operations that work with a single item we can restrict the key condition to achieve the following:
+// - use all the available primary keys;
+// - provide a better type support for the key condition;
+// - for data change operations such types narowing might also be useful and significantly improve type safety;
+
+type GetItemOperationBuilder<S> = S extends [infer F, ...infer R]
+  ? (F extends [infer K, infer S]
+      ? {
+          [LK in `${K & string}Item`]: () => GetIndividualItemOperationBuilder<[[K, S]]>;
+        }
+      : F) &
+      GetItemOperationBuilder<R>
+  : S extends []
+  ? {}
+  : S;
+
+type GetIndividualItemOperationBuilder<S> = {
   key: (
     builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-  ) => GetItemOperationBuilder<S>;
+  ) => GetIndividualItemOperationBuilder<S>;
   // @TODO: projection can include nested fields - check it!
-  projection: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => GetItemOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => GetItemOperationBuilder<S>;
+  projection: (fields: InferProjectionFieldsFromSchemas<S>) => GetIndividualItemOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => GetIndividualItemOperationBuilder<S>;
 };
 
 /**
@@ -310,37 +338,153 @@ type DeepPartial<T> = T extends object
       }
   : T;
 
-type UpdateOperationBuilder<S> = {
+type FilterTupleSchemasByType<T, P> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer V]
+    ? P extends V
+      ? [F, ...FilterTupleSchemasByType<R, P>]
+      : FilterTupleSchemasByType<R, P>
+    : never
+  : T;
+
+type FTP = FilterTupleSchemasByType<
+  [["id", PartitionKey<string>], ["name", string], ["sk", SortKey<string>]],
+  PartitionKey<any>
+>;
+type FTS = FilterTupleSchemasByType<
+  [["id", PartitionKey<string>], ["name", string], ["sk", SortKey<string>]],
+  SortKey<any>
+>;
+type FTR = ExtractKeysFromTupleSchemas<ConcatenateArrays<FTP, FTS>>;
+
+type FilterTableSchemaFieldsByType<T, P> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? FilterTupleSchemasByType<S, P> extends infer FR
+      ? FR extends []
+        ? FilterTableSchemaFieldsByType<R, P>
+        : [[K, FR], ...FilterTableSchemaFieldsByType<R, P>]
+      : never
+    : never
+  : T;
+
+type ExtractKeysFromTupleSchemas<T> = T extends [infer F, ...infer R]
+  ? F extends [infer K, infer V]
+    ? [K, ...ExtractKeysFromTupleSchemas<R>]
+    : never
+  : T;
+
+type ExtractEntityKeysFromTableSchema<S> = S extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? ConcatenateArrays<ExtractKeysFromTupleSchemas<S>, ExtractEntityKeysFromTableSchema<R>>
+    : F
+  : S;
+
+type FTP2 = FilterTableSchemaFieldsByType<
+  [
+    ["users", [["id", PartitionKey<string>], ["name", string], ["sk", SortKey<string>]]],
+    ["users2", [["name", string], ["sk", SortKey<string>]]],
+  ],
+  PartitionKey<any>
+>;
+type FTP3 = FilterTableSchemaFieldsByType<
+  [
+    ["users", [["id", PartitionKey<string>], ["name", string], ["sk", SortKey<string>]]],
+    ["users2", [["name", string], ["sk", SortKey<string>]]],
+  ],
+  SortKey<any>
+>;
+type Keys = CombineArrayElementsViaUnion<
+  ConcatenateArrays<ExtractEntityKeysFromTableSchema<FTP2>, ExtractEntityKeysFromTableSchema<FTP3>>
+>;
+
+type UpdateOperationBuilder<S> = S extends [infer F, ...infer R]
+  ? (F extends [infer K, infer S]
+      ? {
+          [LK in `${K & string}Item`]: () => UpdateIndividualItemOperationBuilder<[[K, S]]>;
+        }
+      : F) &
+      UpdateOperationBuilder<R>
+  : S extends []
+  ? {}
+  : S;
+
+type SetItemValue<S> = (
+  TransformTableSchemaIntoSchemaInterfacesMap<S> extends infer T
+    ? T extends [infer S]
+      ? S extends [infer K, infer V]
+        ? V
+        : S
+      : T
+    : never
+) extends infer I
+  ? Omit<
+      I,
+      CombineArrayElementsViaUnion<
+        ConcatenateArrays<
+          ExtractEntityKeysFromTableSchema<
+            FilterTableSchemaFieldsByType<TransformTableSchemaIntoTupleSchemasMap<S>, PartitionKey<any>>
+          >,
+          ExtractEntityKeysFromTableSchema<
+            FilterTableSchemaFieldsByType<TransformTableSchemaIntoTupleSchemasMap<S>, SortKey<any>>
+          >
+        >
+      > &
+        string
+    > extends infer R
+    ? {
+        [K in keyof R]:
+          | R[K]
+          | (R[K] extends Array<unknown> ? { operationName: "append_list"; value: R[K] } : never)
+          | (R[K] extends number ? { operationName: "increment" | "decrement"; value: R[K] } : never);
+      }
+    : never
+  : never;
+
+type UpdateIndividualItemOperationBuilder<S> = {
   key: (
     builder: ConditionExpressionBuilder<
       PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<TransformTableSchemaIntoTupleSchemasMap<S>>
     >,
-  ) => UpdateOperationBuilder<S>;
-  set: (value: DeepPartial<TransformTableSchemaIntoSchemaInterfacesMap<S>>) => UpdateOperationBuilder<S>;
-  remove: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateOperationBuilder<S>;
-  // TODO: currently  ADD is not supported because it works only with specific field types what requires additional work to implement it
-  // add: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateOperationBuilder<S>;
-  delete: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateOperationBuilder<S>;
+  ) => UpdateIndividualItemOperationBuilder<S>;
+  // @TODO: use update operators for fields
+  // @TODO: omit primary key fields
+  set: (value: SetItemValue<S>) => UpdateIndividualItemOperationBuilder<S>;
+  remove: (fields: InferProjectionFieldsFromSchemas<S>) => UpdateIndividualItemOperationBuilder<S>;
+  // TODO: currently ADD and DELETE is not supported because it works only with specific field types what requires additional work to implement it
+  // add: (fields: Array<InferProjectionFieldsFromSchemas<S>>) => UpdateIndividualItemOperationBuilder<S>;
+  // delete: (
+  //   fields: InferProjectionFieldsFromSchemas<TransformTableSchemaIntoTupleSchemasMap<S>>,
+  // ) => UpdateIndividualItemOperationBuilder<S>;
   condition: (
     builder: ConditionExpressionBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
-  ) => UpdateOperationBuilder<S>;
-  returnValues(value: "ALL_NEW" | "ALL_OLD" | "UPDATED_NEW" | "UPDATED_OLD"): UpdateOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => UpdateOperationBuilder<S>;
-  returnItemCollectionMetrics: (value: "SIZE") => UpdateOperationBuilder<S>;
+  ) => UpdateIndividualItemOperationBuilder<S>;
+  returnValues(value: "ALL_NEW" | "ALL_OLD" | "UPDATED_NEW" | "UPDATED_OLD"): UpdateIndividualItemOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => UpdateIndividualItemOperationBuilder<S>;
+  returnItemCollectionMetrics: (value: "SIZE") => UpdateIndividualItemOperationBuilder<S>;
 };
 
-type DeleteOperationBuilder<S> = {
+type DeleteOperationBuilder<S> = S extends [infer F, ...infer R]
+  ? (F extends [infer K, infer S]
+      ? {
+          [LK in `${K & string}Item`]: () => DeleteIndividualItemOperationBuilder<[[K, S]]>;
+        }
+      : F) &
+      DeleteOperationBuilder<R>
+  : S extends []
+  ? {}
+  : S;
+
+type DeleteIndividualItemOperationBuilder<S> = {
   key: (
     builder: ConditionExpressionBuilder<
       PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<TransformTableSchemaIntoTupleSchemasMap<S>>
     >,
-  ) => DeleteOperationBuilder<S>;
+  ) => DeleteIndividualItemOperationBuilder<S>;
   condition: (
     builder: ConditionExpressionBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
-  ) => DeleteOperationBuilder<S>;
-  returnValues(value: "ALL_OLD"): DeleteOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => DeleteOperationBuilder<S>;
-  returnItemCollectionMetrics: (value: "SIZE") => DeleteOperationBuilder<S>;
+  ) => DeleteIndividualItemOperationBuilder<S>;
+  returnValues(value: "ALL_OLD"): DeleteIndividualItemOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => DeleteIndividualItemOperationBuilder<S>;
+  returnItemCollectionMetrics: (value: "SIZE") => DeleteIndividualItemOperationBuilder<S>;
 };
 
 // type QueryBuilder<S extends TupleKeyedEntitySchemas> = {
@@ -475,25 +619,6 @@ const schemaV2 = schemaBuilder()
   .add("categories", categoriesSchema)
   .build();
 
-type SchemaV2Type = InferTupledMap<typeof schemaV2>;
-type SchemaV2 = TransformTableSchemaIntoSchemaInterfacesMap<SchemaV2Type>;
-type ShcmeaKyeConditions = KeyConditionBuilder<SchemaV2>;
-const schemaKeyConditions = {} as ShcmeaKyeConditions;
-schemaKeyConditions.postsItem({
-  pk: "posts#some",
-  sk: 0,
-  publishingDate: new Date(),
-  authors: [{ name: "some author", rating: 1 }],
-});
-
-type OriginalPostsType = Omit<TransformTypeToSchemaBuilderInterface<ExamplePostsEntitySchema>, "publishingDate">;
-
-type UsersSchemaInterface = ReconstructInterfaces<InferTupleMapInterface<typeof usersSchema>>;
-type PostsSchemaInterface = ReconstructInterfaces<InferTupleMapInterface<typeof postsSchema>>;
-type TableInterface = InferTupleMapInterface<typeof schema>;
-type SchemaType = InferTupledMap<typeof schema>;
-const builder = {} as unknown as Builder<SchemaType>;
-
 queryBuilder<typeof schemaV2>()
   .query()
   .keyCondition((eb, { or, and }) =>
@@ -582,12 +707,21 @@ queryBuilder<typeof schemaV2>()
 
 const userEntitySchema = schemaBuilder()
   .add("id", partitionKey(composite((t) => t.literal("users#").string())))
+  .add("sk", sortKey(number()))
   .add("name", string())
   .add("age", number())
   .add("dob", date())
+  .add("address", map(schemaBuilder().add("zip", number()).add("building", string()).build()))
+  .add("cards", list(map(schemaBuilder().add("last4", number()).add("type", string()).build())))
   .build();
 
-const tableSchema = schemaBuilder().add("users", userEntitySchema).build();
+const postsEntitySchema = schemaBuilder()
+  .add("title", partitionKey(string()))
+  .add("content", string())
+  .add("authors", list(map(schemaBuilder().add("name", string()).build())))
+  .build();
+
+const tableSchema = schemaBuilder().add("users", userEntitySchema).add("posts", postsEntitySchema).build();
 
 const qb = queryBuilder<typeof tableSchema>();
 
@@ -599,11 +733,51 @@ qb.query()
 
 qb.put().usersItem({
   id: "users#some-random-user-id",
+  sk: 1,
   name: "",
   age: 0,
   dob: new Date(),
+  address: {
+    zip: 222,
+    building: "my house",
+  },
 });
 
 qb.get()
+  .usersItem()
   .key((eb) => eb("id", "=", "users#some-random-user-id"))
-  .projection(["name", "age"]);
+  .projection(["name", "age", "address"]);
+
+qb.get()
+  .postsItem()
+  .key((eb) => eb("title", "=", "some title"))
+  .projection(["title", "content"]);
+
+qb.update()
+  .usersItem()
+  .key((eb) => eb("id", "=", "users#some-random-user-id"))
+  .condition((eb) => eb("age", "=", 20))
+  .set({
+    name: "new name",
+    age: 21,
+    dob: new Date(),
+    address: {
+      zip: 222,
+      building: "my house",
+    },
+    cards: {
+      operationName: "append_list",
+      value: [{ last4: 1234, type: "visa" }],
+    },
+  })
+  .remove(["name", "age"])
+  .returnValues("ALL_NEW");
+
+qb.delete()
+  .usersItem()
+  .key((eb) => eb("id", "=", "users#some-random-user-id"))
+  .condition((eb) => eb("age", ">", 20));
+
+qb.delete()
+  .postsItem()
+  .key((eb) => eb("title", "=", "some title"));
