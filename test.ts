@@ -287,3 +287,18 @@ qb.delete()
 qb.delete()
   .postsItem()
   .key((eb) => eb("title", "=", "some title"));
+
+const userSchema = schema().add("name", string()).add("age", number()).build();
+
+const rootTableSchema = schema().add("users", userSchema).build();
+
+const indexUserSchema = schema().add("name", string()).build();
+
+const indexTableSchema = schema().add("users", indexUserSchema).build();
+
+const qb2 = queryBuilder<typeof rootTableSchema, { users: typeof indexTableSchema }>();
+
+qb2
+  .query()
+  .index("users")
+  .filter((eb, { and }) => and([eb("name", "<>", "bob"), eb("age", ">", 18)]));

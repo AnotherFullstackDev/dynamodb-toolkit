@@ -12,6 +12,9 @@ import {
   TupleKeyValuePeer,
   TupleMapBuilderResult,
   TupleValue,
+  number,
+  schema,
+  string,
 } from "./schema";
 import { UpdateOperationBuilder } from "./update-item";
 
@@ -129,18 +132,24 @@ export type ConditionExpressionBuilder<S> = (
   },
 ) => any;
 
-type QueryOperationBuilder<S> = {
+type QueryOperationIndexSelector<IDX> = {
+  index: <N extends keyof IDX>(name: N) => SingleTableQueryOperationBuilder<IDX[N]>;
+};
+
+type SingleTableQueryOperationBuilder<S> = {
   keyCondition: (
     builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-  ) => QueryOperationBuilder<S>;
+  ) => SingleTableQueryOperationBuilder<S>;
   filter: (
     builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-  ) => QueryOperationBuilder<S>;
-  projection: (fields: InferProjectionFieldsFromSchemas<S>) => QueryOperationBuilder<S>;
-  offset: (offset: number) => QueryOperationBuilder<S>;
-  limit: (limit: number) => QueryOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => QueryOperationBuilder<S>;
+  ) => SingleTableQueryOperationBuilder<S>;
+  projection: (fields: InferProjectionFieldsFromSchemas<S>) => SingleTableQueryOperationBuilder<S>;
+  offset: (offset: number) => SingleTableQueryOperationBuilder<S>;
+  limit: (limit: number) => SingleTableQueryOperationBuilder<S>;
+  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => SingleTableQueryOperationBuilder<S>;
 };
+
+type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;
 
 type ScanOperationBuilder<S> = {
   filter: (builder: ConditionExpressionBuilder<S>) => ScanOperationBuilder<S>;
@@ -150,8 +159,11 @@ type ScanOperationBuilder<S> = {
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => ScanOperationBuilder<S>;
 };
 
-type Builder<S> = {
-  query: () => QueryOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
+type Builder<S, IDX> = {
+  query: () => QueryOperationBuilder<
+    TransformTableSchemaIntoTupleSchemasMap<S>,
+    { [K in keyof IDX]: TransformTableSchemaIntoTupleSchemasMap<IDX[K]> }
+  >;
   scan: () => ScanOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
   get: () => GetItemOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
   put: () => PutOperationBuilder<S>;
@@ -159,5 +171,8 @@ type Builder<S> = {
   delete: () => DeleteOperationBuilder<S>;
 };
 
-export const queryBuilder = <S extends TupleMapBuilderResult<unknown, unknown>>(): Builder<InferTupledMap<S>> =>
-  null as unknown as Builder<InferTupledMap<S>>;
+export const queryBuilder = <
+  S extends TupleMapBuilderResult<unknown, unknown>,
+  IDX extends Record<string, TupleMapBuilderResult>,
+>(): Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> =>
+  null as unknown as Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }>;
