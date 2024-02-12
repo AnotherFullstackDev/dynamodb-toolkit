@@ -1,5 +1,5 @@
-import { Attribute, IndexAttributeValueTypes, ListAttribute, MapAttribute, PartitionKey, SortKey } from "./attribute";
-import { ConcatenateArrays } from "./utility-types";
+import { Attribute, IndexAttributeValueTypes, ListAttribute, MapAttribute, PartitionKey, SortKey } from "../attribute";
+import { ConcatenateArrays } from "../utility-types";
 
 export type TransformTypeToSchemaBuilderInterface<T> = {
   [K in keyof T]: T[K] extends Record<string, unknown>
@@ -52,6 +52,8 @@ export type ExtractTupleMapBuilderResultFromSingleValue<T> = T extends Attribute
   ? Attribute<A, ExtractTupleMapBuilderResultFromSingleValue<ExtractAttributeValueType<V>>>
   : T;
 
+type ETT = ExtractTupleMapBuilderResultFromSingleValue<Attribute<"REGULAR", number>>;
+
 export type ExtractOriginalTypeFromSingleValue<T> = T extends Attribute<infer A, infer V>
   ? ExtractOriginalTypeFromSingleValue<
       // Seems that even if the tupleMapBuilderResult uses another type under the hood we still need to check for that type.
@@ -87,6 +89,8 @@ export type ReconstructInterfaces<T> = T extends object
     }
   : T;
 
+// TODO: map builders should be uniform
+// TODO: map builders should always accept attribute as a value (currently, untill we have a wrapper for a data type)
 export type NotTypedTupleMapBuilder<
   I extends Record<string, unknown> = Record<string, unknown>,
   T extends TupleKeyValuePeer<string, unknown>[] = [],
@@ -134,20 +138,6 @@ export type InferTupledMap<T> = T extends TupleMapBuilderResult<infer I, infer T
 //   ? M
 //   : never;
 export type InferTupleMapInterface<T> = T extends TupleMapBuilderOriginalInterface<infer I> ? I : never;
-
-// export const schemaType = <V extends TupleMapBuilder<any, any> | TypedTupleMapBuilderCompletedResult>(
-//** @deprecated */
-export const useSchema = <V extends TupleMapBuilderResult>(value: V): ForEachMapValuePrependKey<InferTupledMap<V>> =>
-  value as any;
-
-export const createModel = <N extends string, M extends TupleMapBuilderResult>(
-  name: N,
-  model: M,
-): TupleKeyValuePeer<N, InferTupledMap<M>> => [name, model as any];
-
-export const schema = <I extends Record<string, unknown> = TupleMapBuilderUnknownInterface>(): TupleMapBuilder<
-  I extends TupleMapBuilderUnknownInterface ? I : TransformTypeToSchemaBuilderInterface<I>
-> => ({} as any);
 
 // @TODO: check for duplicates
 type InferAttributeValue<T> = T extends Attribute<infer K, infer MV> ? MV : T;

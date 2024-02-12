@@ -12,7 +12,7 @@ import {
   partitionKey,
   sortKey,
   string,
-} from "./attribute";
+} from "../attribute";
 import {
   ExtractTupleMapBuilderResultFromSingleValue,
   ForEachMapValuePrependKey,

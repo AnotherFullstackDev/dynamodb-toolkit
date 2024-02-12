@@ -9,7 +9,7 @@ import {
   SortKey,
 } from "./attribute";
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
-import { ConditionExpressionBuilder } from "./query";
+import { ConditionExpressionBuilder } from "./condition/condition.types";
 import {
   ExtractEntityKeysFromTableSchema,
   FilterTableSchemaFieldsByType,
@@ -19,7 +19,7 @@ import {
   RemoveTableSchemaFieldsByType,
   TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
-} from "./schema";
+} from "./schema/schema.types";
 import { CombineArrayElementsViaUnion, ConcatenateArrays, DeepPartial } from "./utility-types";
 
 type AddOperationsToItemInterface<T> = T extends object

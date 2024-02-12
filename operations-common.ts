@@ -13,3 +13,5 @@ export type InferProjectionFieldsFromSchemas<T> = Array<
 >;
 
 export type ReturnConsumedCapacityValues = "INDEXES" | "TOTAL" | "NONE";
+
+export type ReturnItemCommectionMetricsValues = "SIZE" | "NONE";

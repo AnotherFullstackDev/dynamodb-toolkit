@@ -11,7 +11,7 @@ import {
   sortKey,
   string,
 } from "./attribute";
-import { queryBuilder } from "./query";
+import { queryBuilder } from "./condition/condition.types";
 import {
   InferTupledMap,
   TransformTableSchemaIntoSchemaInterfacesMap,
@@ -20,7 +20,7 @@ import {
   TupleMapBuilderResult,
   schema,
   useSchema,
-} from "./schema";
+} from "./schema/schema.types";
 import { appendList } from "./update-item";
 import { ScalarTypes } from "./utility-types";
 

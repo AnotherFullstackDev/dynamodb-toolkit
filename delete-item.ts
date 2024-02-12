@@ -3,7 +3,7 @@ import { ConditionExpressionBuilder } from "./query";
 import {
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
   TransformTableSchemaIntoTupleSchemasMap,
-} from "./schema";
+} from "./schema/schema.types";
 
 type DeleteIndividualItemOperationBuilder<S> = {
   key: (

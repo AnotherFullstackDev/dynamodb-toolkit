@@ -8,12 +8,12 @@ import {
   RegularAttribute,
   SetAttribute,
   SortKey,
-} from "./attribute";
-import { DeleteOperationBuilder } from "./delete-item";
-import { GetItemOperationBuilder } from "./get-item";
-import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
-import { putItemFacadeFactory } from "./put-item/put-item.facade";
-import { PutOperationBuilder } from "./put-item/put-item.types";
+} from "../attribute";
+import { DeleteOperationBuilder } from "../delete-item";
+import { GetItemOperationBuilder } from "../get-item";
+import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "../operations-common";
+import { putItemFacadeFactory } from "../put-item/put-item.facade";
+import { PutOperationBuilder } from "../put-item/put-item.types";
 import {
   InferTupledMap,
   PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList,
@@ -24,13 +24,9 @@ import {
   TupleKeyValuePeer,
   TupleMapBuilderResult,
   TupleValue,
-  TupledTableSchema,
-  number,
-  schema,
-  string,
-} from "./schema";
-import { GenericTupleBuilderResultSchema, GenericTupleTableSchema } from "./test";
-import { UpdateOperationBuilder } from "./update-item";
+} from "../schema/schema.types";
+import { GenericTupleBuilderResultSchema } from "../test";
+import { UpdateOperationBuilder } from "../update-item";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -40,7 +36,7 @@ export type EntitySchema<K extends string | number | symbol> = Record<
 
 // Not sure if it makes sense to have this type stricter as `F extends keyof S`
 // type ComparisonOperatorDefinition<F extends string | number | symbol, O extends string, S extends EntitySchema<F>> = {
-type ComparisonOperatorDefinition<
+export type ComparisonOperatorDefinition<
   F extends string | number | symbol,
   O extends string,
   S extends Record<F, unknown>,
@@ -51,22 +47,27 @@ type ComparisonOperatorDefinition<
 };
 
 // The type might be make stricter by accepting the operator as a generic type parameter. It might help during implementation of the builder.
-type LogicalOperatorDefinition = {
+export type LogicalOperatorDefinition = {
   operator: LogicalOperators;
-  conditions: Array<ComparisonOperatorDefinition<string, string, EntitySchema<string>> | LogicalOperatorDefinition>;
+  // conditions: Array<ComparisonOperatorDefinition<string, string, EntitySchema<string>> | LogicalOperatorDefinition>;
+  conditions: Array<
+    | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
+    | OperatorDefinition<"logical", LogicalOperatorDefinition>
+  >;
 };
 
-type OperatorDefinition<
+export type OperatorDefinition<
   T extends "conditional" | "logical" | "function",
   O extends
     | ComparisonOperatorDefinition<string | number | symbol, string, EntitySchema<string>>
     | LogicalOperatorDefinition,
 > = {
   type: T;
-  operator: T extends "logical" ? O[] : O;
+  // operator: T extends "logical" ? O[] : O;
+  operator: O;
 };
 
-type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends string> = <
+export type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends string> = <
   LN extends N, // necessary to make the model names generics work
   F extends keyof S = keyof S,
 >(
@@ -75,7 +76,7 @@ type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends s
   value: InferOriginalOrAttributeDataType<S[F]>,
 ) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, S>>;
 
-type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
+export type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
   operator: LogicalOperators,
   ...conditions: ComparisonOperatorDefinition<F, ComparisonOperators, S>[]
 ) => OperatorDefinition<"logical", LogicalOperatorDefinition>;
@@ -150,7 +151,12 @@ export type ConditionExpressionBuilder<S> = (
       >,
     ) => OperatorDefinition<"logical", LogicalOperatorDefinition>;
   },
-) => any;
+) =>
+  | OperatorDefinition<
+      "conditional",
+      ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
+    >
+  | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
 type QueryOperationIndexSelector<IDX> = {
   index: <N extends keyof IDX>(name: N) => SingleTableQueryOperationBuilder<IDX[N]>;

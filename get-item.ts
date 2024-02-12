@@ -3,7 +3,7 @@
 
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
 import { ConditionExpressionBuilder } from "./query";
-import { PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList } from "./schema";
+import { PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList } from "./schema/schema.types";
 
 type GetIndividualItemOperationBuilder<S> = {
   key: (

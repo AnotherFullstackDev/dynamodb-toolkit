@@ -4,16 +4,18 @@
  * because each operation can work with only one item at a time
  */
 
-import { ReturnConsumedCapacityValues } from "../operations-common";
-import { ConditionExpressionBuilder } from "../query";
+import { ReturnConsumedCapacityValues, ReturnItemCommectionMetricsValues } from "../operations-common";
+import { ConditionExpressionBuilder } from "../condition/condition.types";
 import {
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
   TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
   TupleMapBuilderResult,
   TupledTableSchema,
-} from "../schema";
+} from "../schema/schema.types";
 import { GenericInterfaceTableSchema, GenericTupleTableSchema } from "../test";
+
+export type PutItemReturnValues = "ALL_NEW" | "ALL_OLD";
 
 /**
  * @param S - Tuple of entity schema interfaces as [[string, Record<string, unknown>]]
@@ -36,11 +38,11 @@ export type PutOperationAdditionalParamsBuilder<TS> = {
   // throwIfExists: () => PutOperationBuilder<S>;
   throwIfExists: () => PutOperationAdditionalParamsBuilder<TS>;
   // returnValues(value: "ALL_NEW" | "ALL_OLD"): PutOperationBuilder<S>;
-  returnValues(value: "ALL_NEW" | "ALL_OLD"): PutOperationAdditionalParamsBuilder<TS>;
+  returnValues(value: PutItemReturnValues): PutOperationAdditionalParamsBuilder<TS>;
   // returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => PutOperationBuilder<S>;
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => PutOperationAdditionalParamsBuilder<TS>;
   // returnItemCollectionMetrics: (value: "SIZE") => PutOperationBuilder<S>;
-  returnItemCollectionMetrics: (value: "SIZE") => PutOperationAdditionalParamsBuilder<TS>;
+  returnItemCollectionMetrics: (value: ReturnItemCommectionMetricsValues) => PutOperationAdditionalParamsBuilder<TS>;
 };
 
 export type PutOperationBuilder<IS, TS> = {
