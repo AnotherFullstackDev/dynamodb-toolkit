@@ -1,13 +1,4 @@
-import {
-  IndexAttributeValueTypes,
-  PartitionKey,
-  SortKey,
-  ListAttribute,
-  MapAttribute,
-  SetAttribute,
-  SetAttributeValueTypes,
-  Attribute,
-} from "./attribute";
+import { Attribute, IndexAttributeValueTypes, ListAttribute, MapAttribute, PartitionKey, SortKey } from "./attribute";
 import { ConcatenateArrays } from "./utility-types";
 
 export type TransformTypeToSchemaBuilderInterface<T> = {
@@ -144,48 +135,10 @@ export type InferTupledMap<T> = T extends TupleMapBuilderResult<infer I, infer T
 //   : never;
 export type InferTupleMapInterface<T> = T extends TupleMapBuilderOriginalInterface<infer I> ? I : never;
 
-export type CompositeValue<T> = T extends [infer FT, ...infer R]
-  ? `${FT extends string | number | boolean | bigint | null | undefined ? FT : FT & string}${CompositeValue<R>}`
-  : T extends []
-  ? ""
-  : never;
-
-export type CompositeTypeBuilder<T extends any[] = []> = {
-  literal: <V extends string>(value: V) => CompositeTypeBuilder<[...T, V]>;
-  string: () => CompositeTypeBuilder<[...T, string]>;
-  number: () => CompositeTypeBuilder<[...T, number]>;
-  boolean: () => CompositeTypeBuilder<[...T, boolean]>;
-};
-
-export type InferCompositeType<T extends CompositeTypeBuilder<any>> = T extends CompositeTypeBuilder<infer R>
-  ? R
-  : never;
-
-export const composite = <V extends (fn: CompositeTypeBuilder) => CompositeTypeBuilder>(
-  fn: V,
-): CompositeValue<InferCompositeType<ReturnType<V>>> => fn as any;
-
-export const number = <V extends number>(): V => null as any;
-
-export const string = <V extends string>(): V => null as any;
-
-export const bool = <V extends boolean>(): V => null as any;
-
-export const date = <V extends Date>(): V => null as any;
-
 // export const schemaType = <V extends TupleMapBuilder<any, any> | TypedTupleMapBuilderCompletedResult>(
+//** @deprecated */
 export const useSchema = <V extends TupleMapBuilderResult>(value: V): ForEachMapValuePrependKey<InferTupledMap<V>> =>
   value as any;
-
-export const partitionKey = <V extends IndexAttributeValueTypes>(value: V): PartitionKey<V> => ({
-  attributeType: "PARTITION_KEY",
-  dataType: value,
-});
-
-export const sortKey = <V extends IndexAttributeValueTypes>(value: V): SortKey<V> => ({
-  attributeType: "SORT_KEY",
-  dataType: value,
-});
 
 export const createModel = <N extends string, M extends TupleMapBuilderResult>(
   name: N,
@@ -195,12 +148,6 @@ export const createModel = <N extends string, M extends TupleMapBuilderResult>(
 export const schema = <I extends Record<string, unknown> = TupleMapBuilderUnknownInterface>(): TupleMapBuilder<
   I extends TupleMapBuilderUnknownInterface ? I : TransformTypeToSchemaBuilderInterface<I>
 > => ({} as any);
-
-export const list = <V>(value: V): ListAttribute<V> => value as any;
-
-export const map = <V extends TupleMapBuilderResult>(value: V): MapAttribute<V> => value as any;
-
-export const set = <V extends SetAttributeValueTypes>(value: V): SetAttribute<V> => value as any;
 
 // @TODO: check for duplicates
 type InferAttributeValue<T> = T extends Attribute<infer K, infer MV> ? MV : T;
@@ -372,4 +319,4 @@ export type TupleKeyedEntitySchema = TupleKeyValuePeer<
   [TupleKeyValuePeer<string, unknown>, ...TupleKeyValuePeer<string, unknown>[]]
 >;
 
-export type TupleKeyedEntitySchemas = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];
+export type TupledTableSchema = [TupleKeyedEntitySchema, ...TupleKeyedEntitySchema[]];

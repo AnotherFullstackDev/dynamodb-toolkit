@@ -27,3 +27,7 @@ export type CombineArrayElementsViaUnion<T> = T extends [infer E, ...infer R]
   : never;
 
 export type ConcatenateArrays<T, A> = [...(T extends [...infer U] ? U : [T]), ...(A extends [...infer AE] ? AE : [A])];
+
+export type RemapRecord<R> = { [K in keyof R]: R[K] };
+
+export type ScalarTypes = string | number | boolean | bigint | null | undefined;

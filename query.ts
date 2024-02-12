@@ -1,21 +1,35 @@
-import { Attribute, InferOriginalOrAttributeDataType, PartitionKey, SortKey } from "./attribute";
+import {
+  Attribute,
+  DateAttribute,
+  InferOriginalOrAttributeDataType,
+  ListAttribute,
+  MapAttribute,
+  PartitionKey,
+  RegularAttribute,
+  SetAttribute,
+  SortKey,
+} from "./attribute";
 import { DeleteOperationBuilder } from "./delete-item";
 import { GetItemOperationBuilder } from "./get-item";
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
-import { PutOperationBuilder } from "./put-item";
+import { putItemFacadeFactory } from "./put-item/put-item.facade";
+import { PutOperationBuilder } from "./put-item/put-item.types";
 import {
   InferTupledMap,
   PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList,
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
+  TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
   TupleKey,
   TupleKeyValuePeer,
   TupleMapBuilderResult,
   TupleValue,
+  TupledTableSchema,
   number,
   schema,
   string,
 } from "./schema";
+import { GenericTupleBuilderResultSchema, GenericTupleTableSchema } from "./test";
 import { UpdateOperationBuilder } from "./update-item";
 
 // @TODO: evaluate if this type is neccesary
@@ -77,11 +91,17 @@ export type LogicalOperators = "and" | "or" | "not";
 type AttributeTypesToOperatorsTupledMap = [
   [PartitionKey<any>, "="],
   [SortKey<any>, "=" | "<" | "<=" | ">" | ">=" | "begins_with" | "between"],
-  [string, ComparisonOperators | ComparisonFunctions],
-  [number, ComparisonOperators | ComparisonFunctions],
-  [bigint, ComparisonOperators | ComparisonFunctions],
-  [boolean, ComparisonOperators | ComparisonFunctions],
-  [Date, ComparisonOperators | ComparisonFunctions],
+
+  // Experiment with complex data types
+  [SetAttribute<any>, ComparisonOperators | ComparisonFunctions],
+  [MapAttribute<any>, ComparisonOperators | ComparisonFunctions],
+  [ListAttribute<any>, ComparisonOperators | ComparisonFunctions],
+
+  [RegularAttribute<string>, ComparisonOperators | ComparisonFunctions],
+  [RegularAttribute<number>, ComparisonOperators | ComparisonFunctions],
+  [RegularAttribute<bigint>, ComparisonOperators | ComparisonFunctions],
+  [RegularAttribute<boolean>, ComparisonOperators | ComparisonFunctions],
+  [DateAttribute<Date>, ComparisonOperators | ComparisonFunctions],
 ];
 
 /**
@@ -166,13 +186,26 @@ type Builder<S, IDX> = {
   >;
   scan: () => ScanOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
   get: () => GetItemOperationBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
-  put: () => PutOperationBuilder<S>;
+  put: () => PutOperationBuilder<
+    TransformTableSchemaIntoSchemaInterfacesMap<S>,
+    TransformTableSchemaIntoTupleSchemasMap<S>
+  >;
   update: () => UpdateOperationBuilder<S>;
   delete: () => DeleteOperationBuilder<S>;
 };
 
 export const queryBuilder = <
-  S extends TupleMapBuilderResult<unknown, unknown>,
-  IDX extends Record<string, TupleMapBuilderResult>,
->(): Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> =>
-  null as unknown as Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }>;
+  S extends TupleMapBuilderResult<any, GenericTupleBuilderResultSchema>,
+  IDX extends Record<string, TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>>,
+>(
+  schema: S,
+  indexes: IDX = {} as IDX,
+): Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => ({
+  put: () => putItemFacadeFactory(schema),
+  query: () => null as any,
+  scan: () => null as any,
+  get: () => null as any,
+  update: () => null as any,
+  delete: () => null as any,
+});
+// } as unknown as Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }>;

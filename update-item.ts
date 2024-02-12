@@ -1,4 +1,13 @@
-import { Attribute, ListAttribute, MapAttribute, PartitionKey, SortKey } from "./attribute";
+import {
+  Attribute,
+  DateAttribute,
+  InferOriginalOrAttributeDataType,
+  ListAttribute,
+  MapAttribute,
+  PartitionKey,
+  RegularAttribute,
+  SortKey,
+} from "./attribute";
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
 import { ConditionExpressionBuilder } from "./query";
 import {
@@ -53,27 +62,27 @@ type MS = TransformMapSchemaIntoRecord<[["field", number], ["field2", string]]>;
 
 // @TODO: seems we might recunstruct the map builder interface from the field tuples
 // Probably it might be used to simplify the typesystem in the future
-type TransformAttributeValueIntoRecord<T> = T extends Attribute<infer A, infer V>
+export type TransformAttributeValueIntoRecord<T> = T extends Attribute<infer A, infer V>
   ? A extends "MAP"
     ? TransformMapSchemaIntoRecord<V>
     : A extends "LIST"
     ? TransformAttributeValueIntoRecord<V>[] extends infer LT
       ? LT | UpdateOperationDef<"append_list", LT>
       : never
-    : T
+    : InferOriginalOrAttributeDataType<T>
   : T;
 
 type TAV = TransformAttributeValueIntoRecord<
   ListAttribute<
     MapAttribute<
       [
-        ["field", number],
+        ["field", RegularAttribute<number>],
         ["field2", string],
         [
           "map",
           MapAttribute<
             [
-              ["nested_field", Date],
+              ["nested_field", DateAttribute<Date>],
               ["nested_list", ListAttribute<number>],
               ["nested_list_map", ListAttribute<MapAttribute<[["list_map", number]]>>],
             ]

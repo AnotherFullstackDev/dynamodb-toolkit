@@ -1,7 +1,28 @@
-import { PartitionKey, SortKey } from "./attribute";
+import {
+  Attribute,
+  PartitionKey,
+  SortKey,
+  composite,
+  date,
+  list,
+  map,
+  number,
+  partitionKey,
+  sortKey,
+  string,
+} from "./attribute";
 import { queryBuilder } from "./query";
-import { composite, date, list, map, number, partitionKey, schema, sortKey, string, useSchema } from "./schema";
+import {
+  InferTupledMap,
+  TransformTableSchemaIntoSchemaInterfacesMap,
+  TransformTableSchemaIntoTupleSchemasMap,
+  TupleKeyValuePeer,
+  TupleMapBuilderResult,
+  schema,
+  useSchema,
+} from "./schema";
 import { appendList } from "./update-item";
+import { ScalarTypes } from "./utility-types";
 
 type ExampleUsersEntitySchema = {
   pk: PartitionKey<`users#${string}`>;
@@ -38,26 +59,26 @@ const usersSchema = schema()
     "address",
     map(
       schema()
-        .add("city", map(schema().add("name", "value").add("province", "value").build()))
-        .add("street", "value")
+        .add("city", map(schema().add("name", string()).add("province", string()).build()))
+        .add("street", string())
         .add("zip", number())
-        .add("building", "value")
+        .add("building", string())
         .build(),
     ),
   )
-  .add("cards", list(map(schema().add("last4", number()).add("type", "value").build())))
+  .add("cards", list(map(schema().add("last4", number()).add("type", string()).build())))
   .build();
 
 const postsSchema = schema<ExamplePostsEntitySchema>()
   .add("pk", partitionKey(composite((builder) => builder.literal("posts#").string())))
   .add("sk", sortKey(number()))
   .add("publishingDate", date())
-  .add("authors", list(map(schema().add("name", "value").add("rating", number()).build())))
+  .add("authors", list(map(schema().add("name", string()).add("rating", number()).build())))
   .build();
 
 // There is a possibility of type missmatch if type is provided for a nested schema
 const commentUsersSchema = schema<{ username: string; postedAt: number }>()
-  .add("username", "value")
+  .add("username", string())
   .add("postedAt", number())
   .build();
 const commetnsSchema = schema()
@@ -71,7 +92,7 @@ const categoriesSchema = schema<ExampleCategoriesEntitySchema>()
   .add("sk", sortKey(number()))
   .add(
     "metadata",
-    map(schema<{ name: string; description: number }>().add("name", "value").add("description", number()).build()),
+    map(schema<{ name: string; description: number }>().add("name", string()).add("description", number()).build()),
   )
   .build();
 
@@ -89,7 +110,7 @@ const schemaV2 = schema()
   .add("categories", categoriesSchema)
   .build();
 
-queryBuilder<typeof schemaV2>()
+queryBuilder(schemaV2)
   .query()
   .keyCondition((eb, { or, and }) =>
     or([
@@ -206,7 +227,7 @@ const userEntitySchema = schema()
   .add("cards", list(map(schema().add("last4", number()).add("type", string()).build())))
   .build();
 
-const postsEntitySchema = schema()
+const postsEntitySchema = schema<{ title: string; content: string; authors: { name: string }[] }>()
   .add("title", partitionKey(string()))
   .add("content", string())
   .add("authors", list(map(schema().add("name", string()).build())))
@@ -214,18 +235,113 @@ const postsEntitySchema = schema()
 
 const tableSchema = schema().add("users", userEntitySchema).add("posts", postsEntitySchema).build();
 
-const qb = queryBuilder<typeof tableSchema>();
+const testTable = schema().add("posts", postsEntitySchema).build();
+
+type TableBase = InferTupledMap<typeof testTable>;
+type TupleTable = TransformTableSchemaIntoTupleSchemasMap<TableBase>;
+type InterfaceTable = TransformTableSchemaIntoSchemaInterfacesMap<TableBase>;
+
+type GenericTupleTable = [...TupleKeyValuePeer<string, GenericTupleAttributeValue>[]];
+
+const tt: TupleTable = [
+  [
+    "posts",
+    [
+      ["title", partitionKey(string())],
+      ["content", string()],
+      ["authors", { dataType: { dataType: [["name", string()]], attributeType: "MAP" }, attributeType: "LIST" }],
+      ["authors.[0]", { dataType: [["name", string()]], attributeType: "MAP" }],
+      ["authors.[0].name", string()],
+    ],
+  ],
+];
+const it: InterfaceTable = [["posts", { title: "string", content: "string", authors: [{ name: "string" }] }]];
+
+const gt: GenericTupleTableSchema = tt;
+const gi: GenericInterfaceTableSchema = it;
+
+export type GenericTupleAttributeValue = TupleKeyValuePeer<
+  string,
+  Attribute<string, Attribute<string, unknown> | ScalarTypes | TupleKeyValuePeer<string, unknown>[]>
+  // | Attribute<string, any>
+  // | ScalarTypes
+  // | Date
+  // any
+>;
+
+export type GenericTupleTableSchema = [
+  TupleKeyValuePeer<string, GenericTupleAttributeValue[]>,
+  ...TupleKeyValuePeer<string, GenericTupleAttributeValue[]>[],
+  // TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>,
+  // ...TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>[],
+];
+
+// export type GenericInterfaceTableSchema = TupleKeyValuePeer<string, Record<string, unknown>>[];
+export type GenericInterfaceTableSchema = [
+  TupleKeyValuePeer<string, Record<string, any>>,
+  // ...TupleKeyValuePeer<string, Record<string, any>>[],
+  // ...unknown[],
+];
+
+// @TODO: necessary to encapsulate everything inside attributes to simplify typing
+export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
+  Record<string, unknown>,
+  [
+    ...TupleKeyValuePeer<
+      string,
+      Attribute<
+        any,
+        | TupleMapBuilderResult<any, any>
+        | Attribute<any, any>
+        // | TupleKeyValuePeer<any, any>
+        | ScalarTypes
+        | Date
+        | Record<string, any> // TODO: this type might masc problems with map builder result interfaces
+      >
+      // Attribute<
+      //   unknown,
+      //   // | TupleKeyValuePeer<string, Attribute<unknown, any>>
+      //   | TupleKeyValuePeer<string, any>
+      //   | Attribute<unknown, any>
+      //   | TupleMapBuilderResult<any, any>
+      //   | ScalarTypes
+      //   | Date
+      // >
+    >[],
+  ]
+>;
+// export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
+//   // | Attribute<string, Attribute<string, unknown> | string | number | boolean | TupleKeyValuePeer<string, unknown>[]>
+//   Attribute<string, any | any[]> | TupleMapBuilderResult<any, any> | string | number | boolean | Date
+// >;
+
+export type GenericTupleBuilderResultSchema = [
+  TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>,
+  ...TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>[],
+];
+
+type TableBase2 = typeof tableSchema;
+type Table = InferTupledMap<TableBase2>;
+const tt2: Table = null as any;
+const test_tt2: GenericTupleBuilderResultSchema = tt2;
+const t: TupleMapBuilderResult<Record<string, unknown>, GenericTupleBuilderResultSchema> = tableSchema;
+const qb = queryBuilder(tableSchema);
 
 qb.query()
   .keyCondition((eb) => eb("id", "=", "users#some-random-user-id"))
   .filter((eb, { or }) =>
-    or([eb("name", "begins_with", "bob"), eb("age", ">", 18), eb("dob", ">", new Date("2007-01-01"))]),
+    or([
+      eb<"users">("address.building", "begins_with", "bob"),
+      eb("age", ">", 18),
+      eb("dob", ">", new Date("2007-01-01")),
+      eb<"posts">("content", "=", "some title"),
+    ]),
   );
 
-qb.put().usersItem({
+qb.put().item("users", {
   id: "users#some-random-user-id",
   sk: 1,
-  name: "",
+  name: "some name",
   age: 0,
   dob: new Date(),
   address: {
@@ -296,9 +412,9 @@ const indexUserSchema = schema().add("name", string()).build();
 
 const indexTableSchema = schema().add("users", indexUserSchema).build();
 
-const qb2 = queryBuilder<typeof rootTableSchema, { users: typeof indexTableSchema }>();
+const qb2 = queryBuilder(rootTableSchema, { users: indexTableSchema });
 
 qb2
   .query()
   .index("users")
-  .filter((eb, { and }) => and([eb("name", "<>", "bob"), eb("age", ">", 18)]));
+  .filter((eb, { and }) => and([eb("name", "=", "bob"), eb("age", ">", 18)]));

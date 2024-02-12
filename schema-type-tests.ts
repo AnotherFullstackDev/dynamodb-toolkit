@@ -1,28 +1,37 @@
-import { ListAttribute, MapAttribute } from "./attribute";
 import {
   CompositeTypeBuilder,
   CompositeValue,
-  ExtractTupleMapBuilderResultFromSingleValue,
-  ForEachMapValuePrependKey,
   InferCompositeType,
-  InferTupledMap,
-  NotTypedTupleMapBuilderCompleteResult,
-  TupleMapBuilder,
-  TupleMapBuilderResult,
+  ListAttribute,
+  MapAttribute,
+  RegularAttribute,
   composite,
-  createModel,
-  schema,
   list,
   map,
   number,
   partitionKey,
-  useSchema,
   sortKey,
+  string,
+} from "./attribute";
+import {
+  ExtractTupleMapBuilderResultFromSingleValue,
+  ForEachMapValuePrependKey,
+  InferTupledMap,
+  NotTypedTupleMapBuilderCompleteResult,
+  TupleMapBuilder,
+  TupleMapBuilderResult,
+  createModel,
+  schema,
+  useSchema,
   TupleKeyValuePeer,
+  TransformTypeToSchemaBuilderInterface,
+  TransformTableSchemaIntoSchemaInterfacesMap,
+  InferTupleMapInterface,
+  TransformTableSchemaIntoTupleSchemasMap,
 } from "./schema";
 
 type ET = ExtractTupleMapBuilderResultFromSingleValue<
-  MapAttribute<TupleMapBuilderResult<unknown, [["field", number]]>>
+  MapAttribute<TupleMapBuilderResult<unknown, [["field", RegularAttribute<number>]]>>
 >;
 type ET1 = ExtractTupleMapBuilderResultFromSingleValue<
   MapAttribute<MapAttribute<TupleMapBuilderResult<unknown, [["field", number]]>>>
@@ -169,18 +178,28 @@ type F = ForEachMapValuePrependKey<
   // Booleans have a peculiarity that they create a union type with true and false variations
   [
     // ["field1", number],
-    ["field2", string],
-    ["field3", MapAttribute<[["nested_field1", string]]>],
-    ["field4", ListAttribute<number>],
-    ["field5", ListAttribute<MapAttribute<[["nested_field2", string]]>>],
-    ["field6", MapAttribute<[["nested_field3", MapAttribute<[["nested_field4", string]]>]]>],
+    // ["field2", RegularAttribute<string>],
+    ["field3", MapAttribute<[["nested_field1", RegularAttribute<string>]]>],
+    // ["field4", ListAttribute<number>],
+    // ["field5", ListAttribute<MapAttribute<[["nested_field2", string]]>>],
+    // ["field6", MapAttribute<[["nested_field3", MapAttribute<[["nested_field4", string]]>]]>],
     // ["field7", MapAttribute<[["nested_field5", ListAttribute<MapAttribute<[["nested_field7", string]]>>]]>],
-    [
-      "field8",
-      ListAttribute<MapAttribute<[["nested_field5", ListAttribute<MapAttribute<[["nested_field7", string]]>>]]>>,
-    ],
+    // [
+    //   "field8",
+    //   ListAttribute<MapAttribute<[["nested_field5", ListAttribute<MapAttribute<[["nested_field7", string]]>>]]>>,
+    // ],
   ]
 >;
+
+const nestedSchema = schema()
+  //   .add("field", string())
+  .add("map", map(schema().add("field", string()).build()))
+  .build();
+const table = schema().add("model", nestedSchema).build();
+type NestedSchema = typeof table;
+type NestedSchemaRawTuple = InferTupledMap<NestedSchema>;
+type NestedSchemaInterface = TransformTableSchemaIntoSchemaInterfacesMap<NestedSchemaRawTuple>;
+type NestedSchemaTuples = TransformTableSchemaIntoTupleSchemasMap<NestedSchemaRawTuple>;
 
 /**
  * Desired result:
