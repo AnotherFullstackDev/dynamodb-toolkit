@@ -1,0 +1,38 @@
+{
+    "compilerOptions": {
+        /* Basic Options */
+        "target": "es2018", // Specify ECMAScript target version
+        "module": "commonjs", // Specify module code generation
+        "lib": [
+            "es2018"
+        ], // Specify library files to be included in the compilation
+        "declaration": true, // Generate corresponding '.d.ts' file for the library
+        "declarationMap": true, // Create sourcemaps for '.d.ts' files
+        "sourceMap": true, // Create sourcemaps for the JavaScript files
+        "outDir": "./dist", // Redirect output structure to the directory
+        "rootDir": "./src", // Specify the root directory of input files
+        /* Strict Type-Checking Options */
+        "strict": true, // Enable all strict type-checking options
+        /* Module Resolution Options */
+        "moduleResolution": "node", // Resolve modules using Node.js style
+        "baseUrl": "./", // Base directory to resolve non-relative module names
+        "paths": { // Specify paths for module names
+            "*": [
+                "node_modules/*",
+                "src/types/*"
+            ]
+        },
+        "esModuleInterop": true, // Enables emit interoperability between CommonJS and ES Modules
+        "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file
+        /* Advanced Options */
+        "skipLibCheck": true, // Skip type checking of declaration files
+        "resolveJsonModule": true // Include modules imported with '.json' extension
+    },
+    "include": [
+        "src/**/*" // Include all files in the src directory
+    ],
+    "exclude": [
+        "node_modules", // Exclude the node_modules directory
+        "**/*.test.ts" // Exclude test files
+    ]
+}

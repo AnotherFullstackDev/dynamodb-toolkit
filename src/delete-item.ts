@@ -1,5 +1,5 @@
+import { ConditionExpressionBuilder } from "./condition/condition.types";
 import { ReturnConsumedCapacityValues } from "./operations-common";
-import { ConditionExpressionBuilder } from "./query";
 import {
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
   TransformTableSchemaIntoTupleSchemasMap,

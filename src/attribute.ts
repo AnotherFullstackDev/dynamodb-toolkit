@@ -103,7 +103,9 @@ export const binary = <V extends ArrayBufferLike>(): BinaryAttribute<V> => ({
   dataType: ArrayBuffer as unknown as V,
 });
 
-export const partitionKey = <V extends IndexAttributeValueTypes>(value: V | Attribute<unknown, V>): PartitionKey<V> => ({
+export const partitionKey = <V extends IndexAttributeValueTypes>(
+  value: V | Attribute<unknown, V>,
+): PartitionKey<V> => ({
   attributeType: AttributeType.PARTITION_KEY,
   dataType: getDataType(value),
 });

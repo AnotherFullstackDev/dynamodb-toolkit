@@ -1,7 +1,5 @@
-// implementation of put item
-
 import { AttributeType, isAttributeOfParticularType } from "../attribute";
-import { runConditionBuilder } from "../condition/condition.facade";
+import { runConditionBuilder, serializeConditionDef } from "../condition/condition.facade";
 import {
   ComparisonOperatorDefinition,
   ConditionExpressionBuilder,
@@ -18,15 +16,13 @@ import {
   TransformTableSchemaIntoTupleSchemasMap,
   TupleMapBuilderResult,
 } from "../schema/schema.types";
-import { GenericInterfaceTableSchema, GenericTupleBuilderResultSchema } from "../test";
-import { PutItemReturnValues, PutOperationAdditionalParamsBuilder, PutOperationBuilder } from "./put-item.types";
-
-/**
- * Common implementations
- * - transformation of fields into placeholders and aliases
- * - transformation of values into placeholders and aliases
- * - creation of type descriptors for field values
- */
+import { GenericInterfaceTableSchema, GenericTupleBuilderResultSchema } from "../general-test";
+import {
+  PutItemOperationDef,
+  PutItemReturnValues,
+  PutOperationAdditionalParamsBuilder,
+  PutOperationBuilder,
+} from "./put-item.types";
 
 type PutItemStateType = {
   item: Record<string, unknown>;
@@ -43,7 +39,7 @@ const putItemAdditionaOperationsFactory = <TS extends GenericTupleBuilderResultS
   schema: TS,
   state: PutItemStateType,
 ): PutOperationAdditionalParamsBuilder<TS> => {
-  const schemaTupleMap = new TupleMap(schema);
+  const schemaTupleMap = new TupleMap("ROOT", schema as any); // @TODO: fix it
   //   const result: PutOperationAdditionalParamsBuilder<GenericTupleTableSchema> = {
   const result = {
     condition: function (builder: ConditionExpressionBuilder<any>): PutOperationAdditionalParamsBuilder<TS> {
@@ -105,6 +101,31 @@ const putItemAdditionaOperationsFactory = <TS extends GenericTupleBuilderResultS
         ...state,
         returnItemCollectionMetrics: value,
       });
+    },
+    build: function (): PutItemOperationDef {
+      const conditionValuesHost: Pick<PutItemOperationDef, "condition" | "expressionAttributeValues"> = {
+        condition: null,
+        expressionAttributeValues: null,
+      };
+
+      if (state.condition) {
+        const serializationResult = serializeConditionDef(state.condition, {
+          conditionIndex: 0,
+        });
+
+        conditionValuesHost.condition = serializationResult.condition;
+        conditionValuesHost.expressionAttributeValues = serializationResult.valuePlaceholders;
+      }
+
+      return {
+        item: state.item,
+        condition: conditionValuesHost.condition,
+        expressionAttributeValues: conditionValuesHost.expressionAttributeValues,
+        expressionAttributeNames: null,
+        returnValues: state.returnValues,
+        returnConsumedCapacity: state.returnConsumedCapacity,
+        returnItemCollectionMetrics: state.returnItemCollectionMetrics,
+      };
     },
   };
 

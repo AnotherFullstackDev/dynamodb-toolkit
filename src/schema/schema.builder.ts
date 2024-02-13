@@ -10,7 +10,7 @@ import {
 const keyValuePeer = <K extends string, V>(key: K, value: V): TupleKeyValuePeer<K, V> => [key, value];
 
 export const isSchemaBuilderResult = <T>(value: any): value is TupleMapBuilderResult<Record<string, unknown>, T> =>
-  (value && typeof value === "object") || value.state === "completed";
+  value && typeof value === "object" && value.state === "completed";
 
 // @TODO: not type safe!
 export const extractSchemaBuilderFieldValue = (

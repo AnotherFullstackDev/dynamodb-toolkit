@@ -1,12 +1,9 @@
 import {
-  ComparisonFunctions,
   ComparisonOperatorDefinition,
   ComparisonOperatorFactory,
-  ComparisonOperators,
   ConditionExpressionBuilder,
   EntitySchema,
   LogicalOperatorDefinition,
-  LogicalOperatorFactory,
   LogicalOperators,
   OperatorDefinition,
 } from "./condition.types";
@@ -38,25 +35,57 @@ export const logicalOperationFactory = (
   },
 });
 
+/**
+ * Common implementations
+ * - transformation of fields into placeholders and aliases
+ * - transformation of values into placeholders and aliases
+ * - creation of type descriptors for field values
+ */
+
 export const serializeConditionDef = (
   value:
     | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
     | OperatorDefinition<"logical", LogicalOperatorDefinition>,
-) => {
+  state: { conditionIndex: number } = { conditionIndex: 0 },
+): { condition: string; valuePlaceholders: Record<string, unknown> } => {
   if (value.type === "logical") {
-    const combinedCondition: string = value.operator.conditions
+    const { conditions, valuePlaceholders } = value.operator.conditions
       .map((value) => {
-        const condition = serializeConditionDef(value);
+        const condition = serializeConditionDef(value, {
+          ...state,
+          conditionIndex: state.conditionIndex + 1,
+        });
 
         return condition;
       })
-      .join(` ${value.operator.operator} `);
+      .reduce<{ conditions: string[]; valuePlaceholders: Record<string, unknown> }>(
+        (result, item) => {
+          result.conditions.push(item.condition);
+          result.valuePlaceholders = { ...result.valuePlaceholders, ...item.valuePlaceholders };
 
-    return `(${combinedCondition})`;
+          return result;
+        },
+        { conditions: [], valuePlaceholders: {} },
+      );
+    // .join(` ${value.operator.operator} `);
+    const combinedCondition = conditions.join(` ${value.operator.operator} `);
+
+    return {
+      condition: `(${combinedCondition})`,
+      valuePlaceholders: valuePlaceholders,
+    };
   }
 
   if (value.type === "conditional") {
-    return [value.operator.field, value.operator.operator, value.operator.value].join(" ");
+    const valuePlaceholder = `:${value.operator.field}_${state.conditionIndex}`;
+    const condition = [value.operator.field, value.operator.operator, valuePlaceholder].join(" ");
+
+    return {
+      condition,
+      valuePlaceholders: {
+        [valuePlaceholder]: value.operator.value,
+      },
+    };
   }
 
   throw new Error("Unknown operation type");

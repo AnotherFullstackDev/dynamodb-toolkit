@@ -1,5 +1,6 @@
 import {
   Attribute,
+  AttributeType,
   PartitionKey,
   SortKey,
   composite,
@@ -12,14 +13,13 @@ import {
   string,
 } from "./attribute";
 import { queryBuilder } from "./condition/condition.types";
+import { schema, useSchema } from "./schema/schema.facade";
 import {
   InferTupledMap,
   TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
   TupleKeyValuePeer,
   TupleMapBuilderResult,
-  schema,
-  useSchema,
 } from "./schema/schema.types";
 import { appendList } from "./update-item";
 import { ScalarTypes } from "./utility-types";
@@ -249,8 +249,14 @@ const tt: TupleTable = [
     [
       ["title", partitionKey(string())],
       ["content", string()],
-      ["authors", { dataType: { dataType: [["name", string()]], attributeType: "MAP" }, attributeType: "LIST" }],
-      ["authors.[0]", { dataType: [["name", string()]], attributeType: "MAP" }],
+      [
+        "authors",
+        {
+          dataType: { dataType: [["name", string()]], attributeType: AttributeType.MAP },
+          attributeType: AttributeType.LIST,
+        },
+      ],
+      ["authors.[0]", { dataType: [["name", string()]], attributeType: AttributeType.MAP }],
       ["authors.[0].name", string()],
     ],
   ],

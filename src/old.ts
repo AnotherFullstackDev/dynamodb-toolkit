@@ -1,4 +1,4 @@
-import { IndexAttributeValueTypes, PartitionKey, SortKey } from "./attribute";
+import { IndexAttributeValueTypes, PartitionKey, SortKey } from "../attribute";
 import { OmitByValue, PickByValue } from "./utility-types";
 
 type PrimaryKeyAttributes<T> = PickByValue<

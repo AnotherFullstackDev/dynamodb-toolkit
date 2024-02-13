@@ -25,7 +25,7 @@ import {
   TupleMapBuilderResult,
   TupleValue,
 } from "../schema/schema.types";
-import { GenericTupleBuilderResultSchema } from "../test";
+import { GenericTupleBuilderResultSchema } from "../general-test";
 import { UpdateOperationBuilder } from "../update-item";
 
 // @TODO: evaluate if this type is neccesary

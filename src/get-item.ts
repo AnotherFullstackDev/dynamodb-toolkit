@@ -1,8 +1,8 @@
 // @TODO: for operations that work with a single item we can restrict the key condition to achieve the following:
 // - use all the available primary keys;
 
+import { ConditionExpressionBuilder } from "./condition/condition.types";
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
-import { ConditionExpressionBuilder } from "./query";
 import { PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList } from "./schema/schema.types";
 
 type GetIndividualItemOperationBuilder<S> = {

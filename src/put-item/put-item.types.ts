@@ -13,9 +13,19 @@ import {
   TupleMapBuilderResult,
   TupledTableSchema,
 } from "../schema/schema.types";
-import { GenericInterfaceTableSchema, GenericTupleTableSchema } from "../test";
+import { GenericInterfaceTableSchema, GenericTupleTableSchema } from "../general-test";
 
 export type PutItemReturnValues = "ALL_NEW" | "ALL_OLD";
+
+export type PutItemOperationDef = {
+  item: Record<string, unknown>;
+  condition: string | null;
+  expressionAttributeNames: Record<string, string> | null;
+  expressionAttributeValues: Record<string, unknown> | null;
+  returnValues: PutItemReturnValues | null;
+  returnConsumedCapacity: ReturnConsumedCapacityValues | null;
+  returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;
+};
 
 /**
  * @param S - Tuple of entity schema interfaces as [[string, Record<string, unknown>]]
@@ -32,52 +42,21 @@ export type PutOperationItemsBuilder<T, S> = S extends [infer F, ...infer R]
 // export type PutOperationAdditionalParamsBuilder<S extends [...[string, TupleMapBuilderResult][]]> = {
 export type PutOperationAdditionalParamsBuilder<TS> = {
   condition: (
-    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<TS>>,
-    // ) => PutOperationBuilder<S>;
+    // builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<TS>>,
+    builder: ConditionExpressionBuilder<TS>,
   ) => PutOperationAdditionalParamsBuilder<TS>;
-  // throwIfExists: () => PutOperationBuilder<S>;
+
   throwIfExists: () => PutOperationAdditionalParamsBuilder<TS>;
-  // returnValues(value: "ALL_NEW" | "ALL_OLD"): PutOperationBuilder<S>;
+
   returnValues(value: PutItemReturnValues): PutOperationAdditionalParamsBuilder<TS>;
-  // returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => PutOperationBuilder<S>;
+
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => PutOperationAdditionalParamsBuilder<TS>;
-  // returnItemCollectionMetrics: (value: "SIZE") => PutOperationBuilder<S>;
+
   returnItemCollectionMetrics: (value: ReturnItemCommectionMetricsValues) => PutOperationAdditionalParamsBuilder<TS>;
+
+  build: () => PutItemOperationDef;
 };
 
 export type PutOperationBuilder<IS, TS> = {
   item: PutOperationItemsBuilder<TS, IS>;
 };
-// } & PutOperationAdditionalParamsBuilder<TS>;
-// export type PutOperationBuilder<S extends [...[string, TupleMapBuilderResult][]]> = {
-//   item: PutOperationItemsBuilder<S, TransformTableSchemaIntoSchemaInterfacesMap<S>>;
-// } & PutOperationAdditionalParamsBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>;
-
-type Schema = [["users", [["name", string]]]];
-
-const put = ((name, value) =>
-  null as unknown as PutOperationAdditionalParamsBuilder<GenericTupleTableSchema>) satisfies PutOperationItemsBuilder<
-  GenericTupleTableSchema,
-  GenericInterfaceTableSchema
->;
-
-type PutHost<T, I> = {
-  item: PutOperationItemsBuilder<T, I>;
-};
-
-const putHost: PutHost<GenericTupleTableSchema, GenericInterfaceTableSchema> = {
-  item: (name, value) => null as any,
-};
-
-const putHostFn = (): PutHost<GenericTupleTableSchema, GenericInterfaceTableSchema> => ({
-  item: (name: string, value: Record<string, unknown>): any => null as any,
-});
-
-const putItemFacadeFactory =
-  () =>
-  <
-    T extends GenericTupleTableSchema = GenericTupleTableSchema,
-    I extends GenericInterfaceTableSchema = GenericInterfaceTableSchema,
-  >(): PutHost<T, I> => ({
-    item: (name, value) => null as any,
-  });

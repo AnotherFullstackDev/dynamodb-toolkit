@@ -27,10 +27,3 @@ export const schema = <I extends Record<string, unknown> = TupleMapBuilderUnknow
   schemaBuilderFactory([]) as unknown as TupleMapBuilder<
     I extends TupleMapBuilderUnknownInterface ? I : TransformTypeToSchemaBuilderInterface<I>
   >;
-
-const testSchema = extractSchemaBuilderFieldValue(
-  schema()
-    .add("value", string())
-    .add("map", map(schema().add("field", number()).build()))
-    .build(),
-);
