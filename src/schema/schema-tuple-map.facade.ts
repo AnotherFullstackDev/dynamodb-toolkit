@@ -1,4 +1,4 @@
-import { TupleKeyValuePeer } from "./schema.types";
+import { TupleKeyValuePeer, TupleMapBuilderResult } from "./schema.types";
 import { Attribute, AttributeType, isAttributeOfParticularType } from "../attribute/attribute";
 
 export class TupleKeyValue<K extends string, V> {
@@ -47,6 +47,18 @@ export class TupleMap<K extends string = string> {
     });
   }
 
+  static fromTableSchema<T>(
+    tablSchema: TupleKeyValuePeer<string, TupleKeyValuePeer<string, Attribute<AttributeType, unknown>>[]>[],
+  ) {
+    const tableMap = new TupleMap("ROOT", []);
+
+    for (const [entityName, entitySchema] of tablSchema) {
+      tableMap.set(entityName, new TupleMap("MAP", entitySchema));
+    }
+
+    return tableMap;
+  }
+
   getType(): TupleMapType {
     return this.type;
   }
@@ -62,6 +74,10 @@ export class TupleMap<K extends string = string> {
     return tuple;
   }
 
+  set(key: K, value: Attribute<AttributeType, unknown> | TupleMap<string>) {
+    this.value.push(new TupleKeyValue([key, value]));
+  }
+
   find(fn: (tuple: TupleKeyValue<string, unknown>) => boolean): TupleKeyValue<string, unknown> | undefined {
     return this.value.find(fn);
   }
@@ -70,7 +86,9 @@ export class TupleMap<K extends string = string> {
     return this.value.map((tuple) => tuple.key());
   }
 
-  getByPath(path: string): TupleKeyValue<string, Attribute<AttributeType, unknown> | TupleMap<string>> | null {
+  getByPath<T extends Attribute<AttributeType, unknown> | TupleMap<string>>(
+    path: string,
+  ): TupleKeyValue<string, T> | null {
     const pathSegments = path.split(".");
 
     let currentValue = new TupleKeyValue<string, Attribute<AttributeType, unknown> | TupleMap<string>>(["root", this]);
@@ -95,6 +113,6 @@ export class TupleMap<K extends string = string> {
       }
     }
 
-    return currentValue;
+    return currentValue as TupleKeyValue<string, T>;
   }
 }

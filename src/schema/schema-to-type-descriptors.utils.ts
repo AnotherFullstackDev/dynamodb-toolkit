@@ -7,6 +7,8 @@ import {
   isBooleanAttribute,
   isDateAttribute,
   isNumberAttribute,
+  isPartitionKeyAttribute,
+  isSortKeyAttribute,
   isStringAttribute,
 } from "../attribute/attribute";
 import { TupleKeyValue, TupleMap } from "./schema-tuple-map.facade";
@@ -78,6 +80,10 @@ export const getDescriptorFactoryForValueByPath = (
 };
 
 export const getDescriptorFactoryForValue = (innerValue: unknown): TypeDescriptorFactory<any> | null => {
+  if (isPartitionKeyAttribute(innerValue) || isSortKeyAttribute(innerValue)) {
+    return getDescriptorFactoryForValue(getDataType(innerValue));
+  }
+
   if (isStringAttribute(innerValue)) {
     return stringDescriptorFactory;
   }
@@ -116,6 +122,7 @@ export const getDescriptorFactoryForValue = (innerValue: unknown): TypeDescripto
   return null;
 };
 
+// Usage of the partition key or sort key is not covered in the descriptor factory selector and tests
 export const transformValueToTypeDescriptor = (
   schema: Attribute<AttributeType, unknown> | TupleMap<string>,
   value: unknown,

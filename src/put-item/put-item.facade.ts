@@ -8,7 +8,7 @@ import {
   OperatorDefinition,
 } from "../condition/condition.types";
 import { ReturnConsumedCapacityValues, ReturnItemCommectionMetricsValues } from "../operations-common";
-import { TupleMap } from "../schema/schema-tuple-map.facade";
+import { TupleKeyValue, TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {
   InferTupledMap,
@@ -23,6 +23,7 @@ import {
   PutOperationAdditionalParamsBuilder,
   PutOperationBuilder,
 } from "./put-item.types";
+import { transformValueToTypeDescriptor } from "../schema/schema-to-type-descriptors.utils";
 
 type PutItemStateType = {
   item: Record<string, unknown>;
@@ -35,11 +36,13 @@ type PutItemStateType = {
   returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;
 };
 
-const putItemAdditionaOperationsFactory = <TS extends GenericTupleBuilderResultSchema>(
+// const putItemAdditionaOperationsFactory = <TS extends GenericTupleBuilderResultSchema>(
+const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
   schema: TS,
   state: PutItemStateType,
 ): PutOperationAdditionalParamsBuilder<TS> => {
-  const schemaTupleMap = new TupleMap("ROOT", schema as any); // @TODO: fix it
+  const schemaTupleMap = schema;
+  // const schemaTupleMap = new TupleMap("ROOT", schema as any); // @TODO: fix it
   //   const result: PutOperationAdditionalParamsBuilder<GenericTupleTableSchema> = {
   const result = {
     condition: function (builder: ConditionExpressionBuilder<any>): PutOperationAdditionalParamsBuilder<TS> {
@@ -143,14 +146,22 @@ export const putItemFacadeFactory = <S extends TupleMapBuilderResult<unknown, Ge
 > => {
   const result = {
     // @TODO: we might put the item object to descriptors transformation here
-    item: (name, value) =>
-      putItemAdditionaOperationsFactory(extractSchemaBuilderResult(schema), {
-        item: value,
+    item: (name, value) => {
+      const schemaFacade = TupleMap.fromTableSchema(extractSchemaBuilderResult(schema) as any); // @TODO: fix it
+      const modelSchema = schemaFacade.getByPath<TupleMap>(name);
+
+      if (!modelSchema) {
+        throw new Error(`Schema for model ${name} is not found!`);
+      }
+
+      return putItemAdditionaOperationsFactory(modelSchema.value(), {
+        item: transformValueToTypeDescriptor(modelSchema.value(), value),
         condition: null,
         returnValues: null,
         returnConsumedCapacity: null,
         returnItemCollectionMetrics: null,
-      }),
+      }) as any; //TODO: fix it
+    },
   } satisfies PutOperationBuilder<GenericInterfaceTableSchema, GenericTupleBuilderResultSchema>;
 
   return result as unknown as PutOperationBuilder<

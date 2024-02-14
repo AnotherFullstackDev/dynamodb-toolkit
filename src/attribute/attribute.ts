@@ -17,9 +17,11 @@ export const enum AttributeType {
 
 export type IndexAttributeValueTypes = string | number | boolean;
 
-export type PartitionKey<T extends IndexAttributeValueTypes> = Attribute<AttributeType.PARTITION_KEY, T>;
+export type PartitionKey<T extends IndexAttributeValueTypes | Attribute<AttributeType, IndexAttributeValueTypes>> =
+  Attribute<AttributeType.PARTITION_KEY, T>;
 
-export type SortKey<T extends IndexAttributeValueTypes> = Attribute<AttributeType.SORT_KEY, T>;
+export type SortKey<T extends IndexAttributeValueTypes | Attribute<AttributeType, IndexAttributeValueTypes>> =
+  Attribute<AttributeType.SORT_KEY, T>;
 
 export type ListAttributeValues = Attribute<AttributeType, unknown>;
 // A tuple attribute can be created based on the list type
@@ -76,6 +78,12 @@ export const isListAttribute = <T>(value: any): value is Attribute<AttributeType
 export const isMapAttribute = <T>(value: any): value is Attribute<AttributeType.MAP, T> =>
   isAttributeOfParticularType(value, AttributeType.MAP);
 
+export const isPartitionKeyAttribute = <T>(value: any): value is Attribute<AttributeType.PARTITION_KEY, T> =>
+  isAttributeOfParticularType(value, AttributeType.PARTITION_KEY);
+
+export const isSortKeyAttribute = <T>(value: any): value is Attribute<AttributeType.SORT_KEY, T> =>
+  isAttributeOfParticularType(value, AttributeType.SORT_KEY);
+
 export type CompositeValue<T> = T extends [infer FT, ...infer R]
   ? `${FT extends string | number | boolean | bigint | null | undefined ? FT : FT & string}${CompositeValue<R>}`
   : T extends []
@@ -125,16 +133,22 @@ export const binary = <V extends ArrayBufferLike>(): BinaryAttribute<V> => ({
   dataType: ArrayBuffer as unknown as V,
 });
 
-export const partitionKey = <V extends IndexAttributeValueTypes>(
-  value: V | Attribute<unknown, V>,
+export const partitionKey = <V extends IndexAttributeValueTypes | Attribute<AttributeType, IndexAttributeValueTypes>>(
+  // value: V | Attribute<unknown, V>,
+  value: V,
 ): PartitionKey<V> => ({
   attributeType: AttributeType.PARTITION_KEY,
-  dataType: getDataType(value),
+  // dataType: getDataType(value),
+  dataType: value,
 });
 
-export const sortKey = <V extends IndexAttributeValueTypes>(value: V | Attribute<unknown, V>): SortKey<V> => ({
+export const sortKey = <V extends IndexAttributeValueTypes | Attribute<AttributeType, IndexAttributeValueTypes>>(
+  // value: V | Attribute<unknown, V>,
+  value: V,
+): SortKey<V> => ({
   attributeType: AttributeType.SORT_KEY,
-  dataType: getDataType(value),
+  // dataType: getDataType(value),
+  dataType: value,
 });
 
 export const list = <V extends ListAttributeValues>(value: V): ListAttribute<V> => ({

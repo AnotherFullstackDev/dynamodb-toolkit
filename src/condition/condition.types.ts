@@ -120,7 +120,7 @@ type ForEachKeyComparisonOperatorFactory<K, T> = T extends [infer KeyValuePeer, 
   ? KeyValuePeer extends TupleKeyValuePeer<string, unknown>
     ? ComparisonOperatorFactory<
         K,
-        Record<TupleKey<KeyValuePeer>, TupleValue<KeyValuePeer>>,
+        Record<TupleKey<KeyValuePeer>, InferOriginalOrAttributeDataType<TupleValue<KeyValuePeer>>>,
         GetAttributeOperatorsByType<TupleValue<KeyValuePeer>, AttributeTypesToOperatorsTupledMap>
       > &
         ForEachKeyComparisonOperatorFactory<K, R>

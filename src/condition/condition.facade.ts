@@ -50,10 +50,10 @@ export const serializeConditionDef = (
 ): { condition: string; valuePlaceholders: Record<string, unknown> } => {
   if (value.type === "logical") {
     const { conditions, valuePlaceholders } = value.operator.conditions
-      .map((value) => {
+      .map((value, idx) => {
         const condition = serializeConditionDef(value, {
           ...state,
-          conditionIndex: state.conditionIndex + 1,
+          conditionIndex: state.conditionIndex + idx,
         });
 
         return condition;
@@ -68,7 +68,7 @@ export const serializeConditionDef = (
         { conditions: [], valuePlaceholders: {} },
       );
     // .join(` ${value.operator.operator} `);
-    const combinedCondition = conditions.join(` ${value.operator.operator} `);
+    const combinedCondition = conditions.join(` ${value.operator.operator.toUpperCase()} `);
 
     return {
       condition: `(${combinedCondition})`,

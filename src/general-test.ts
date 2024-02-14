@@ -163,7 +163,7 @@ queryBuilder(schemaV2)
       eb("publishingDate", ">", 1),
       eb("way", "begins_with", "a"),
       eb<"users">("authors.[0].rating", "=", 1),
-      eb("users.[0].username", "=", "not_value"),
+      eb("users.[0].username", "=", "not_value"), // works because literal values are not supported yet for all the attributes
       eb<"comments">("users.[0].postedAt2", "=", 1),
       eb<"categories">("metadata.description", "=", "1"),
       eb("metadata.name", "=", 1),
@@ -227,8 +227,14 @@ const userEntitySchema = schema()
   .add("cards", list(map(schema().add("last4", number()).add("type", string()).build())))
   .build();
 
-const postsEntitySchema = schema<{ title: string; content: string; authors: { name: string }[] }>()
+const postsEntitySchema = schema<{
+  title: string;
+  publicationDate: number;
+  content: string;
+  authors: { name: string }[];
+}>()
   .add("title", partitionKey(string()))
+  .add("publicationDate", sortKey(number())) // TODO: date type should be allowed as a primary key because anderthe hood it uses string
   .add("content", string())
   .add("authors", list(map(schema().add("name", string()).build())))
   .build();
@@ -248,6 +254,7 @@ const tt: TupleTable = [
     "posts",
     [
       ["title", partitionKey(string())],
+      ["publicationDate", sortKey(number())],
       ["content", string()],
       [
         "authors",
@@ -261,7 +268,9 @@ const tt: TupleTable = [
     ],
   ],
 ];
-const it: InterfaceTable = [["posts", { title: "string", content: "string", authors: [{ name: "string" }] }]];
+const it: InterfaceTable = [
+  ["posts", { title: "string", publicationDate: 10, content: "string", authors: [{ name: "string" }] }],
+];
 
 const gt: GenericTupleTableSchema = tt;
 const gi: GenericInterfaceTableSchema = it;
@@ -408,7 +417,7 @@ qb.delete()
 
 qb.delete()
   .postsItem()
-  .key((eb) => eb("title", "=", "some title"));
+  .key((eb, { and }) => and([eb("title", "=", "some title"), eb("publicationDate", ">=", 10)]));
 
 const userSchema = schema().add("name", string()).add("age", number()).build();
 

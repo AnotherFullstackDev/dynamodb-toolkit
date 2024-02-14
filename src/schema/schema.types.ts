@@ -1,5 +1,6 @@
 import {
   Attribute,
+  AttributeType,
   IndexAttributeValueTypes,
   ListAttribute,
   MapAttribute,
@@ -8,6 +9,7 @@ import {
 } from "../attribute/attribute";
 import { ConcatenateArrays } from "../utility-types";
 
+// @TODO: might have problems with list of scalar values
 export type TransformTypeToSchemaBuilderInterface<T> = {
   [K in keyof T]: T[K] extends Record<string, unknown>
     ? MapAttribute<TupleMapBuilderOriginalInterface<TransformTypeToSchemaBuilderInterface<T[K]>>>
@@ -16,9 +18,10 @@ export type TransformTypeToSchemaBuilderInterface<T> = {
       ListAttribute<
         LV extends Record<string, unknown>
           ? MapAttribute<TupleMapBuilderOriginalInterface<TransformTypeToSchemaBuilderInterface<LV>>>
-          : TransformTypeToSchemaBuilderInterface<LV>
+          : Attribute<AttributeType, TransformTypeToSchemaBuilderInterface<LV>>
       >
-    : T[K] | Attribute<unknown, T[K]>;
+    : // : T[K] | Attribute<unknown, T[K]>;
+      Attribute<AttributeType, T[K] | Attribute<AttributeType, T[K]>>;
 };
 
 type TupleMapBuilderOriginalInterface<T> = { interface: T };
@@ -231,7 +234,12 @@ export type RemoveTableSchemaFieldsByType<T, P> = T extends [infer F, ...infer R
   : T;
 
 type TR = RemoveTupleSchemasByType<
-  [["pk", PartitionKey<string>], ["sk", SortKey<number>], ["name", string], ["age", number]],
+  [
+    ["pk", PartitionKey<Attribute<AttributeType.REGULAR, string>>],
+    ["sk", SortKey<number>],
+    ["name", string],
+    ["age", number],
+  ],
   [PartitionKey<any>, SortKey<any>]
 >;
 type TR2 = RemoveTableSchemaFieldsByType<
@@ -252,7 +260,8 @@ export type ExtractEntityKeysFromTableSchema<S> = S extends [infer F, ...infer R
   : S;
 
 export type PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<T> = T extends [infer AttributeTuple, ...infer R]
-  ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+  ? // ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+    TupleValue<AttributeTuple> extends PartitionKey<any> | SortKey<any>
     ? [
         [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],
         ...PickOnlyPrimaryKeyAttributesFromTupledFieldSchemasList<R>,
@@ -270,7 +279,8 @@ export type PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<T> = T extend
   : T;
 
 export type PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<T> = T extends [infer AttributeTuple, ...infer R]
-  ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+  ? // ? TupleValue<AttributeTuple> extends PartitionKey<IndexAttributeValueTypes> | SortKey<IndexAttributeValueTypes>
+    TupleValue<AttributeTuple> extends PartitionKey<any> | SortKey<any>
     ? PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<R>
     : [
         [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],

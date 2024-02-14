@@ -202,3 +202,27 @@ describe("Getting values", () => {
     );
   });
 });
+
+describe("Working with table schemas", () => {
+  it("should get model tuple map from a table schema", () => {
+    const testSchema = schema()
+      .add("field", string())
+      .add("number_field", number())
+      .add("map", map(schema().add("nested_field", date()).build()))
+      .add("list", list(map(schema().add("nested_field", bool()).build())))
+      .build();
+    const testTable = schema().add("users", testSchema).build();
+
+    // @TODO: there is a problem with the tuple map builder type
+    // The type does not reflect the actual structure of the tuple map
+    // When another schema is used the internal value is unpacked in the codebase
+    // While the type thinks that the value stays wrapped in a TupleMapBuilderResult
+    const tupleMap = TupleMap.fromTableSchema(testTable.value as any);
+
+    const model = tupleMap.get("users");
+
+    expect(model).not.toBeNull();
+    expect(model).toBeInstanceOf(TupleKeyValue);
+    expect(model!.value()).toStrictEqual(new TupleMap("MAP", extractSchemaBuilderResult(testSchema)));
+  });
+});
