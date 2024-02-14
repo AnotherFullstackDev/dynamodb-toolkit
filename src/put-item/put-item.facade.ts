@@ -1,4 +1,4 @@
-import { AttributeType, isAttributeOfParticularType } from "../attribute";
+import { AttributeType, isAttributeOfParticularType } from "../attribute/attribute";
 import { runConditionBuilder, serializeConditionDef } from "../condition/condition.facade";
 import {
   ComparisonOperatorDefinition,

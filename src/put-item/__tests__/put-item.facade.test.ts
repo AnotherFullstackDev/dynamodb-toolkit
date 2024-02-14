@@ -1,4 +1,4 @@
-import { partitionKey, string } from "../../attribute";
+import { partitionKey, string } from "../../attribute/attribute";
 import { queryBuilder } from "../../condition/condition.types";
 import { schema } from "../../schema/schema.facade";
 import { PutItemOperationDef } from "../put-item.types";

@@ -1,4 +1,4 @@
-import { isAttributeType } from "../attribute";
+import { isAttributeType } from "../attribute/attribute";
 import {
   ExtractTupleMapBuilderResultFromSingleValue,
   InferTupledMap,

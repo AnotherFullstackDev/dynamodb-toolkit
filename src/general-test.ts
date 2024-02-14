@@ -11,7 +11,7 @@ import {
   partitionKey,
   sortKey,
   string,
-} from "./attribute";
+} from "./attribute/attribute";
 import { queryBuilder } from "./condition/condition.types";
 import { schema, useSchema } from "./schema/schema.facade";
 import {

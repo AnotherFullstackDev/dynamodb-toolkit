@@ -1,12 +1,12 @@
 import { TupleKeyValuePeer } from "./schema.types";
-import { Attribute, AttributeType, isAttributeOfParticularType } from "../attribute";
+import { Attribute, AttributeType, isAttributeOfParticularType } from "../attribute/attribute";
 
 export class TupleKeyValue<K extends string, V> {
   constructor(private tuple: TupleKeyValuePeer<K, V>) {}
 
-  static isTupleKeyValue(value: unknown): value is TupleKeyValuePeer<string, unknown> {
-    return Array.isArray(value) && value.length === 2;
-  }
+  // static isTupleKeyValue(value: unknown): value is TupleKeyValuePeer<string, unknown> {
+  //   return Array.isArray(value) && value.length === 2;
+  // }
 
   key(): K {
     return this.tuple[0];
@@ -19,7 +19,7 @@ export class TupleKeyValue<K extends string, V> {
 
 type TupleMapType = "ROOT" | "MAP" | "LIST";
 
-export class TupleMap<K extends string> {
+export class TupleMap<K extends string = string> {
   private type: TupleMapType;
   private value: TupleKeyValue<K, Attribute<AttributeType, unknown> | TupleMap<string>>[];
 
@@ -82,11 +82,17 @@ export class TupleMap<K extends string> {
         return null;
       }
 
-      if (localValue.getType() === "LIST") {
-        localValue = localValue.get("element").value() as TupleMap<string>;
-      }
+      // if (localValue.getType() === "LIST") {
+      //   localValue = localValue.get("element").value() as TupleMap<string>;
+      // }
 
-      currentValue = localValue.get(segment) as TupleKeyValue<string, TupleMap<string>>;
+      // TODO: a validation might be added to report when a list index is skipped or in a wrong format
+      // Path segment after the list is skipped because it will reference an index inside a list
+      if (localValue.getType() === "LIST") {
+        currentValue = localValue.get("element") as TupleKeyValue<string, TupleMap<string>>;
+      } else {
+        currentValue = localValue.get(segment) as TupleKeyValue<string, TupleMap<string>>;
+      }
     }
 
     return currentValue;

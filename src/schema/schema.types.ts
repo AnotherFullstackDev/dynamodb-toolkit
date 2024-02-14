@@ -1,4 +1,11 @@
-import { Attribute, IndexAttributeValueTypes, ListAttribute, MapAttribute, PartitionKey, SortKey } from "../attribute";
+import {
+  Attribute,
+  IndexAttributeValueTypes,
+  ListAttribute,
+  MapAttribute,
+  PartitionKey,
+  SortKey,
+} from "../attribute/attribute";
 import { ConcatenateArrays } from "../utility-types";
 
 export type TransformTypeToSchemaBuilderInterface<T> = {

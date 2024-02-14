@@ -7,7 +7,7 @@ import {
   PartitionKey,
   RegularAttribute,
   SortKey,
-} from "./attribute";
+} from "./attribute/attribute";
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
 import { ConditionExpressionBuilder } from "./condition/condition.types";
 import {

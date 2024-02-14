@@ -8,7 +8,7 @@ import {
   RegularAttribute,
   SetAttribute,
   SortKey,
-} from "../attribute";
+} from "../attribute/attribute";
 import { DeleteOperationBuilder } from "../delete-item";
 import { GetItemOperationBuilder } from "../get-item";
 import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "../operations-common";

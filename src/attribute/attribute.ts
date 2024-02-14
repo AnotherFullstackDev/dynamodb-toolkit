@@ -1,6 +1,6 @@
 // @TODO: solve attributes nulability question;
 
-import { TupleMapBuilderResult } from "./schema/schema.types";
+import { TupleMapBuilderResult } from "../schema/schema.types";
 
 export type Attribute<A, T> = { attributeType: A; dataType: T };
 
@@ -53,6 +53,27 @@ export const isAttributeOfParticularType = <T, A extends AttributeType>(
 
 export const getDataType = <T>(value: T | Attribute<unknown, T>): T =>
   isAttributeType(value) ? value.dataType : value;
+
+export const isStringAttribute = (value: any): value is Attribute<AttributeType.REGULAR, string> =>
+  isAttributeOfParticularType(value, AttributeType.REGULAR) && Object.is(value.dataType, String);
+
+export const isNumberAttribute = (value: any): value is Attribute<AttributeType.REGULAR, number> =>
+  isAttributeOfParticularType(value, AttributeType.REGULAR) && Object.is(value.dataType, Number);
+
+export const isBinaryAttribute = (value: any): value is Attribute<AttributeType.BINARY, ArrayBuffer> =>
+  isAttributeOfParticularType(value, AttributeType.BINARY) && Object.is(value.dataType, ArrayBuffer);
+
+export const isBooleanAttribute = (value: any): value is Attribute<AttributeType.REGULAR, boolean> =>
+  isAttributeOfParticularType(value, AttributeType.REGULAR) && Object.is(value.dataType, Boolean);
+
+export const isDateAttribute = (value: any): value is Attribute<AttributeType.DATE, Date> =>
+  isAttributeOfParticularType(value, AttributeType.DATE);
+
+export const isListAttribute = <T>(value: any): value is Attribute<AttributeType.LIST, T> =>
+  isAttributeOfParticularType(value, AttributeType.LIST);
+
+export const isMapAttribute = <T>(value: any): value is Attribute<AttributeType.MAP, T> =>
+  isAttributeOfParticularType(value, AttributeType.MAP);
 
 export type CompositeValue<T> = T extends [infer FT, ...infer R]
   ? `${FT extends string | number | boolean | bigint | null | undefined ? FT : FT & string}${CompositeValue<R>}`

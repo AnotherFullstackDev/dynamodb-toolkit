@@ -1,4 +1,14 @@
-import { Attribute, AttributeType, MapAttribute, bool, date, list, map, number, string } from "../../attribute";
+import {
+  Attribute,
+  AttributeType,
+  MapAttribute,
+  bool,
+  date,
+  list,
+  map,
+  number,
+  string,
+} from "../../attribute/attribute";
 import { TupleKeyValue, TupleMap } from "../schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema.builder";
 import { schema } from "../schema.facade";
@@ -148,10 +158,10 @@ describe("Getting values", () => {
     expect(value!.value()).toStrictEqual(date());
   });
 
-  it("should get a nested field from a list in a tuple map", () => {
+  it("should get a nested field from a list in a tuple map with specified index", () => {
     const tupleMap = new TupleMap("ROOT", extractSchemaBuilderResult(testSchema));
 
-    const value = tupleMap.getByPath("list.nested_field");
+    const value = tupleMap.getByPath("list.0.nested_field");
 
     expect(value).not.toBeNull();
     expect(value).toBeInstanceOf(TupleKeyValue);
@@ -169,14 +179,26 @@ describe("Getting values", () => {
     expect(value!.value()).toStrictEqual(date());
   });
 
-  it("should get a nested field from a map inside a list", () => {
+  it("should get a nested field from a map inside a list with specified index", () => {
     const tupleMap = new TupleMap("ROOT", extractSchemaBuilderResult(testSchema));
 
     const list = tupleMap.getByPath("list") as TupleKeyValue<string, TupleMap<string>>;
-    const value = list.value().getByPath("nested_field");
+    const value = list.value().getByPath("0.nested_field");
 
     expect(value).not.toBeNull();
     expect(value).toBeInstanceOf(TupleKeyValue);
     expect(value!.value()).toStrictEqual(bool());
+  });
+
+  it("should get an underlying value when a list element is accessed by an index", () => {
+    const tupleMap = new TupleMap("ROOT", extractSchemaBuilderResult(testSchema));
+
+    const value = tupleMap.getByPath("list.0");
+
+    expect(value).not.toBeNull();
+    expect(value).toBeInstanceOf(TupleKeyValue);
+    expect(value!.value()).toStrictEqual(
+      new TupleMap("MAP", extractSchemaBuilderResult(schema().add("nested_field", bool()).build())),
+    );
   });
 });
