@@ -21,9 +21,10 @@ export type PartitionKey<T extends IndexAttributeValueTypes> = Attribute<Attribu
 
 export type SortKey<T extends IndexAttributeValueTypes> = Attribute<AttributeType.SORT_KEY, T>;
 
+export type ListAttributeValues = Attribute<AttributeType, unknown>;
 // A tuple attribute can be created based on the list type
 // export type ListAttribute<T> = Attribute<"LIST", T[]>;
-export type ListAttribute<T> = Attribute<AttributeType.LIST, T>; // changing type from T[] to T to avoid problems with extracting Attribute value types
+export type ListAttribute<T extends ListAttributeValues> = Attribute<AttributeType.LIST, T>; // changing type from T[] to T to avoid problems with extracting Attribute value types
 
 export type MapAttribute<T> = Attribute<AttributeType.MAP, T>;
 
@@ -136,7 +137,7 @@ export const sortKey = <V extends IndexAttributeValueTypes>(value: V | Attribute
   dataType: getDataType(value),
 });
 
-export const list = <V>(value: V): ListAttribute<V> => ({
+export const list = <V extends ListAttributeValues>(value: V): ListAttribute<V> => ({
   attributeType: AttributeType.LIST,
   dataType: value,
 });

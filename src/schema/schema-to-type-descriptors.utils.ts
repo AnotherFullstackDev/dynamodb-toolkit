@@ -117,11 +117,14 @@ export const getDescriptorFactoryForValue = (innerValue: unknown): TypeDescripto
 };
 
 export const transformValueToTypeDescriptor = (
-  schema: TupleMap<string> | TupleKeyValue<string, Attribute<AttributeType, unknown> | TupleMap<string>>,
+  schema: Attribute<AttributeType, unknown> | TupleMap<string>,
   value: unknown,
 ): TypeDescriptorHost => {
-  //   console.log(value);
-  if (Array.isArray(value)) {
+  if (schema instanceof TupleMap && schema.getType() === "LIST") {
+    if (!Array.isArray(value)) {
+      throw new Error("Schema defines an array but value is not an array! Value is: " + value);
+    }
+
     const listElementSchema = (schema as TupleMap<string>).getByPath("[n]"); // path segment format does not matter
 
     if (!listElementSchema) {
@@ -129,35 +132,44 @@ export const transformValueToTypeDescriptor = (
     }
 
     return listDescriptorFactory(
-      value.map((innerValue) => transformValueToTypeDescriptor(listElementSchema, innerValue)),
+      value.map((innerValue) =>
+        transformValueToTypeDescriptor(
+          listElementSchema.value() as Attribute<AttributeType, unknown> | TupleMap<string>,
+          innerValue,
+        ),
+      ),
     );
   }
 
-  if (value && typeof value === "object" && !(value instanceof ArrayBuffer) && !(value instanceof Date)) {
+  if (schema instanceof TupleMap && (schema.getType() === "MAP" || schema.getType() === "ROOT")) {
+    if (!value || typeof value !== "object") {
+      throw new Error("Schema defines a map but value is not an object! Value is: " + value);
+    }
+
     const result = {} as Record<string, unknown>;
 
     for (const [key, innerValue] of Object.entries(value as Record<string, unknown>)) {
-      //   const descriptorFactory = getDescriptorFactoryForValueByPath(schema as TupleMap<string>, key);
       const fieldSchema = (schema as TupleMap<string>).getByPath(key);
 
-      //   if (!descriptorFactory || !fieldSchema) {
       if (!fieldSchema) {
         throw new Error("No definition in shcmea for the map value");
       }
 
-      //   result[key] = descriptorFactory(transformValueToTypeDescriptor(fieldSchema, innerValue));
-      result[key] = transformValueToTypeDescriptor(fieldSchema, innerValue);
+      result[key] = transformValueToTypeDescriptor(
+        fieldSchema.value() as Attribute<AttributeType, unknown> | TupleMap<string>,
+        innerValue,
+      );
     }
 
     return mapDescriptorFactory(result);
   }
 
-  const valueDescriptorFactory = getDescriptorFactoryForValue((schema as TupleKeyValue<string, unknown>).value());
+  const valueDescriptorFactory = getDescriptorFactoryForValue(schema);
 
   if (!valueDescriptorFactory) {
+    console.error({ schema, value });
     throw new Error("No type descriptor found for the leaf value");
   }
 
-  //   console.log({ value });
   return valueDescriptorFactory(value);
 };
