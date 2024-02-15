@@ -15,3 +15,12 @@ export type InferProjectionFieldsFromSchemas<T> = Array<
 export type ReturnConsumedCapacityValues = "INDEXES" | "TOTAL" | "NONE";
 
 export type ReturnItemCommectionMetricsValues = "SIZE" | "NONE";
+
+export enum OperationType {
+  PUT = "put",
+}
+
+export type OperationDefBase = {
+  type: OperationType;
+  returnConsumedCapacity: ReturnConsumedCapacityValues | null;
+};

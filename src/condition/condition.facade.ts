@@ -47,9 +47,13 @@ export const serializeConditionDef = (
     | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
     | OperatorDefinition<"logical", LogicalOperatorDefinition>,
   state: { conditionIndex: number } = { conditionIndex: 0 },
-): { condition: string; valuePlaceholders: Record<string, unknown> } => {
+): {
+  condition: string;
+  valuePlaceholders: Record<string, unknown>;
+  attributeNamePlaceholders: Record<string, string>;
+} => {
   if (value.type === "logical") {
-    const { conditions, valuePlaceholders } = value.operator.conditions
+    const { conditions, valuePlaceholders, attributeNamePlaceholders } = value.operator.conditions
       .map((value, idx) => {
         const condition = serializeConditionDef(value, {
           ...state,
@@ -58,32 +62,43 @@ export const serializeConditionDef = (
 
         return condition;
       })
-      .reduce<{ conditions: string[]; valuePlaceholders: Record<string, unknown> }>(
+      .reduce<{
+        conditions: string[];
+        valuePlaceholders: Record<string, unknown>;
+        attributeNamePlaceholders: Record<string, string>;
+      }>(
         (result, item) => {
           result.conditions.push(item.condition);
           result.valuePlaceholders = { ...result.valuePlaceholders, ...item.valuePlaceholders };
+          result.attributeNamePlaceholders = { ...result.attributeNamePlaceholders, ...item.attributeNamePlaceholders };
 
           return result;
         },
-        { conditions: [], valuePlaceholders: {} },
+        { conditions: [], valuePlaceholders: {}, attributeNamePlaceholders: {} },
       );
     // .join(` ${value.operator.operator} `);
     const combinedCondition = conditions.join(` ${value.operator.operator.toUpperCase()} `);
 
     return {
       condition: `(${combinedCondition})`,
-      valuePlaceholders: valuePlaceholders,
+      valuePlaceholders,
+      attributeNamePlaceholders,
     };
   }
 
   if (value.type === "conditional") {
+    // @TODO: add working with nested attribute names
+    const attributeNamePlaceholder = `#${value.operator.field}_${state.conditionIndex}`;
     const valuePlaceholder = `:${value.operator.field}_${state.conditionIndex}`;
-    const condition = [value.operator.field, value.operator.operator, valuePlaceholder].join(" ");
+    const condition = [attributeNamePlaceholder, value.operator.operator, valuePlaceholder].join(" ");
 
     return {
       condition,
       valuePlaceholders: {
         [valuePlaceholder]: value.operator.value,
+      },
+      attributeNamePlaceholders: {
+        [attributeNamePlaceholder]: value.operator.field,
       },
     };
   }

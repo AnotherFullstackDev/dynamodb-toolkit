@@ -7,7 +7,7 @@ import {
   LogicalOperatorDefinition,
   OperatorDefinition,
 } from "../condition/condition.types";
-import { ReturnConsumedCapacityValues, ReturnItemCommectionMetricsValues } from "../operations-common";
+import { OperationType, ReturnConsumedCapacityValues, ReturnItemCommectionMetricsValues } from "../operations-common";
 import { TupleKeyValue, TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {
@@ -23,7 +23,10 @@ import {
   PutOperationAdditionalParamsBuilder,
   PutOperationBuilder,
 } from "./put-item.types";
-import { transformValueToTypeDescriptor } from "../schema/schema-to-type-descriptors.utils";
+import {
+  getDescriptorFactoryForValue,
+  transformValueToTypeDescriptor,
+} from "../schema/schema-to-type-descriptors.utils";
 
 type PutItemStateType = {
   item: Record<string, unknown>;
@@ -70,14 +73,22 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
       }
 
       const builder: ConditionExpressionBuilder<any> = (comparisonFactory, logicalFactory) => {
+        // console.log(state.item, partitionKey, sortKey);
+        const partitionKyeDescriptorFactory = getDescriptorFactoryForValue(partitionKey.value());
+
         if (sortKey) {
+          const sortKeyDescriptorFactory = getDescriptorFactoryForValue(sortKey.value());
           return logicalFactory.and([
-            comparisonFactory(partitionKey.key(), "=", partitionKey.value()),
-            comparisonFactory(sortKey.key(), "=", sortKey.value()),
+            comparisonFactory(partitionKey.key(), "<>", partitionKyeDescriptorFactory!(state.item[partitionKey.key()])),
+            comparisonFactory(sortKey.key(), "<>", sortKeyDescriptorFactory!(state.item[sortKey.key()])),
           ]);
         }
 
-        return comparisonFactory(partitionKey.key(), "=", partitionKey.value());
+        return comparisonFactory(
+          partitionKey.key(),
+          "<>",
+          partitionKyeDescriptorFactory!(state.item[partitionKey.key()]),
+        );
       };
 
       return putItemAdditionaOperationsFactory(schema, {
@@ -106,9 +117,13 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
       });
     },
     build: function (): PutItemOperationDef {
-      const conditionValuesHost: Pick<PutItemOperationDef, "condition" | "expressionAttributeValues"> = {
+      const conditionValuesHost: Pick<
+        PutItemOperationDef,
+        "condition" | "expressionAttributeValues" | "expressionAttributeNames"
+      > = {
         condition: null,
         expressionAttributeValues: null,
+        expressionAttributeNames: null,
       };
 
       if (state.condition) {
@@ -118,13 +133,15 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
 
         conditionValuesHost.condition = serializationResult.condition;
         conditionValuesHost.expressionAttributeValues = serializationResult.valuePlaceholders;
+        conditionValuesHost.expressionAttributeNames = serializationResult.attributeNamePlaceholders;
       }
 
       return {
-        item: state.item,
+        type: OperationType.PUT,
+        item: transformValueToTypeDescriptor(schema, state.item),
         condition: conditionValuesHost.condition,
         expressionAttributeValues: conditionValuesHost.expressionAttributeValues,
-        expressionAttributeNames: null,
+        expressionAttributeNames: conditionValuesHost.expressionAttributeNames,
         returnValues: state.returnValues,
         returnConsumedCapacity: state.returnConsumedCapacity,
         returnItemCollectionMetrics: state.returnItemCollectionMetrics,
@@ -155,7 +172,8 @@ export const putItemFacadeFactory = <S extends TupleMapBuilderResult<unknown, Ge
       }
 
       return putItemAdditionaOperationsFactory(modelSchema.value(), {
-        item: transformValueToTypeDescriptor(modelSchema.value(), value),
+        // item: transformValueToTypeDescriptor(modelSchema.value(), value),
+        item: value,
         condition: null,
         returnValues: null,
         returnConsumedCapacity: null,

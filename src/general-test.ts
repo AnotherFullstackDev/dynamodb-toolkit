@@ -433,3 +433,36 @@ qb2
   .query()
   .index("users")
   .filter((eb, { and }) => and([eb("name", "=", "bob"), eb("age", ">", 18)]));
+
+
+
+
+
+
+
+const userSchemaV2 = schema()
+  .add("name", partitionKey(string()))
+  .add("age", sortKey(number()))
+  .add("address", map(schema().add("building", string()).build()))
+  .add("family_membes", list(map(schema().add("name", string()).add("age", number()).build())))
+  .build();
+
+const tableSchemaV2 = schema().add("users", userSchemaV2).build();
+
+const builder = queryBuilder(tableSchemaV2);
+
+builder
+  .query()
+  .keyCondition((eb) => eb("name", "=", "bob"))
+  .filter((eb, { and }) => and([eb("address.building", "=", "some building"), eb("family_membes.[0].name", "=", "John")]));
+
+// Ultimate type safety!
+
+
+
+
+
+
+
+
+

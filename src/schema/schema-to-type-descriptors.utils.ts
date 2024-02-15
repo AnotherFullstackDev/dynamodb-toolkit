@@ -23,7 +23,7 @@ export const stringDescriptorFactory: TypeDescriptorFactory<string> = (value: st
 
 export const numberDescriptorFactory: TypeDescriptorFactory<number> = (value: number) => ({
   //   N: value.toString(),
-  N: value,
+  N: String(value),
 });
 
 export const booleanDescriptorFactory: TypeDescriptorFactory<boolean> = (value: boolean) => ({

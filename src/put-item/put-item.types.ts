@@ -4,7 +4,11 @@
  * because each operation can work with only one item at a time
  */
 
-import { ReturnConsumedCapacityValues, ReturnItemCommectionMetricsValues } from "../operations-common";
+import {
+  OperationDefBase,
+  ReturnConsumedCapacityValues,
+  ReturnItemCommectionMetricsValues,
+} from "../operations-common";
 import { ConditionExpressionBuilder } from "../condition/condition.types";
 import {
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
@@ -15,15 +19,15 @@ import {
 } from "../schema/schema.types";
 import { GenericInterfaceTableSchema, GenericTupleTableSchema } from "../general-test";
 
-export type PutItemReturnValues = "ALL_NEW" | "ALL_OLD";
+export type PutItemReturnValues = "ALL_OLD" | "NONE";
 
-export type PutItemOperationDef = {
+export type PutItemOperationDef = OperationDefBase & {
   item: Record<string, unknown>;
   condition: string | null;
   expressionAttributeNames: Record<string, string> | null;
   expressionAttributeValues: Record<string, unknown> | null;
   returnValues: PutItemReturnValues | null;
-  returnConsumedCapacity: ReturnConsumedCapacityValues | null;
+  // returnConsumedCapacity: ReturnConsumedCapacityValues | null;
   returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;
 };
 
