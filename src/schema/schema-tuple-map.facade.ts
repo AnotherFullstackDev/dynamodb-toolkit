@@ -63,6 +63,10 @@ export class TupleMap<K extends string = string> {
     return this.type;
   }
 
+  has(key: string): boolean {
+    return this.value.some((tuple) => tuple.key() === key);
+  }
+
   get(key: string): TupleKeyValue<string, Attribute<AttributeType, unknown> | TupleMap<string>> {
     const tuple = this.value.find((tuple) => tuple.key() === key);
 
@@ -84,6 +88,10 @@ export class TupleMap<K extends string = string> {
 
   keys(): string[] {
     return this.value.map((tuple) => tuple.key());
+  }
+
+  forEach(fn: (tuple: TupleKeyValue<string, unknown>, idx?: number) => void) {
+    this.value.forEach(fn);
   }
 
   getByPath<T extends Attribute<AttributeType, unknown> | TupleMap<string>>(

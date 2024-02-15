@@ -1,27 +1,7 @@
-import { queryBuilder } from "../condition/condition.types";
-import { map, number, partitionKey, sortKey, string } from "../attribute/attribute";
-import { schema } from "../schema/schema.facade";
-import { run } from "../runner/runner.facade";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-
-const usersSchema = schema()
-  .add("name", partitionKey(string()))
-  .add("age", sortKey(number()))
-  .add(
-    "building",
-    map(
-      schema()
-        .add("street", string())
-        .add("number", number())
-        .add("zip", string())
-        .add("type", string())
-        .add("size", number())
-        .build(),
-    ),
-  )
-  .build();
-
-const tableSchema = schema().add("users", usersSchema).build();
+import { queryBuilder } from "../condition/condition.types";
+import { run } from "../runner/runner.facade";
+import { tableSchema } from "./example-schema";
 
 const qb = queryBuilder(tableSchema);
 

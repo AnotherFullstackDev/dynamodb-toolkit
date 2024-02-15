@@ -27,6 +27,8 @@ import {
 } from "../schema/schema.types";
 import { GenericTupleBuilderResultSchema } from "../general-test";
 import { UpdateOperationBuilder } from "../update-item";
+import { QueryOperationBuilder } from "../query/query.types";
+import { queryOperationBuilder } from "../query/query.facade";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -158,24 +160,24 @@ export type ConditionExpressionBuilder<S> = (
     >
   | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
-type QueryOperationIndexSelector<IDX> = {
-  index: <N extends keyof IDX>(name: N) => SingleTableQueryOperationBuilder<IDX[N]>;
-};
+// type QueryOperationIndexSelector<IDX> = {
+//   index: <N extends keyof IDX>(name: N) => SingleTableQueryOperationBuilder<IDX[N]>;
+// };
 
-type SingleTableQueryOperationBuilder<S> = {
-  keyCondition: (
-    builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-  ) => SingleTableQueryOperationBuilder<S>;
-  filter: (
-    builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-  ) => SingleTableQueryOperationBuilder<S>;
-  projection: (fields: InferProjectionFieldsFromSchemas<S>) => SingleTableQueryOperationBuilder<S>;
-  offset: (offset: number) => SingleTableQueryOperationBuilder<S>;
-  limit: (limit: number) => SingleTableQueryOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => SingleTableQueryOperationBuilder<S>;
-};
+// type SingleTableQueryOperationBuilder<S> = {
+//   keyCondition: (
+//     builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
+//   ) => SingleTableQueryOperationBuilder<S>;
+//   filter: (
+//     builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
+//   ) => SingleTableQueryOperationBuilder<S>;
+//   projection: (fields: InferProjectionFieldsFromSchemas<S>) => SingleTableQueryOperationBuilder<S>;
+//   offset: (offset: number) => SingleTableQueryOperationBuilder<S>;
+//   limit: (limit: number) => SingleTableQueryOperationBuilder<S>;
+//   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => SingleTableQueryOperationBuilder<S>;
+// };
 
-type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;
+// type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;
 
 type ScanOperationBuilder<S> = {
   filter: (builder: ConditionExpressionBuilder<S>) => ScanOperationBuilder<S>;
@@ -208,7 +210,7 @@ export const queryBuilder = <
   indexes: IDX = {} as IDX,
 ): Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => ({
   put: () => putItemFacadeFactory(schema),
-  query: () => null as any,
+  query: () => queryOperationBuilder(schema, indexes),
   scan: () => null as any,
   get: () => null as any,
   update: () => null as any,

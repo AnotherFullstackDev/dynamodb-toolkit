@@ -7,7 +7,12 @@ import {
   LogicalOperatorDefinition,
   OperatorDefinition,
 } from "../condition/condition.types";
-import { OperationType, ReturnConsumedCapacityValues, ReturnItemCommectionMetricsValues } from "../operations-common";
+import {
+  GenericCondition,
+  OperationType,
+  ReturnConsumedCapacityValues,
+  ReturnItemCommectionMetricsValues,
+} from "../operations-common";
 import { TupleKeyValue, TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {
@@ -30,10 +35,7 @@ import {
 
 type PutItemStateType = {
   item: Record<string, unknown>;
-  condition:
-    | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
-    | OperatorDefinition<"logical", LogicalOperatorDefinition>
-    | null;
+  condition: GenericCondition | null;
   returnValues: PutItemReturnValues | null;
   returnConsumedCapacity: ReturnConsumedCapacityValues | null;
   returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;

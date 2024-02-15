@@ -5,7 +5,9 @@
  */
 
 import {
+  ConditionExpressionPlaceholdersHost,
   OperationDefBase,
+  OperationType,
   ReturnConsumedCapacityValues,
   ReturnItemCommectionMetricsValues,
 } from "../operations-common";
@@ -21,15 +23,16 @@ import { GenericInterfaceTableSchema, GenericTupleTableSchema } from "../general
 
 export type PutItemReturnValues = "ALL_OLD" | "NONE";
 
-export type PutItemOperationDef = OperationDefBase & {
-  item: Record<string, unknown>;
-  condition: string | null;
-  expressionAttributeNames: Record<string, string> | null;
-  expressionAttributeValues: Record<string, unknown> | null;
-  returnValues: PutItemReturnValues | null;
-  // returnConsumedCapacity: ReturnConsumedCapacityValues | null;
-  returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;
-};
+export type PutItemOperationDef = OperationDefBase<OperationType.PUT> &
+  ConditionExpressionPlaceholdersHost & {
+    item: Record<string, unknown>;
+    condition: string | null;
+    // expressionAttributeNames: Record<string, string> | null;
+    // expressionAttributeValues: Record<string, unknown> | null;
+    returnValues: PutItemReturnValues | null;
+    // returnConsumedCapacity: ReturnConsumedCapacityValues | null;
+    returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;
+  };
 
 /**
  * @param S - Tuple of entity schema interfaces as [[string, Record<string, unknown>]]
