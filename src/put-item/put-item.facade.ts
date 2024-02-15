@@ -74,21 +74,15 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
 
       const builder: ConditionExpressionBuilder<any> = (comparisonFactory, logicalFactory) => {
         // console.log(state.item, partitionKey, sortKey);
-        const partitionKyeDescriptorFactory = getDescriptorFactoryForValue(partitionKey.value());
 
         if (sortKey) {
-          const sortKeyDescriptorFactory = getDescriptorFactoryForValue(sortKey.value());
           return logicalFactory.and([
-            comparisonFactory(partitionKey.key(), "<>", partitionKyeDescriptorFactory!(state.item[partitionKey.key()])),
-            comparisonFactory(sortKey.key(), "<>", sortKeyDescriptorFactory!(state.item[sortKey.key()])),
+            comparisonFactory(partitionKey.key(), "<>", state.item[partitionKey.key()]),
+            comparisonFactory(sortKey.key(), "<>", state.item[sortKey.key()]),
           ]);
         }
 
-        return comparisonFactory(
-          partitionKey.key(),
-          "<>",
-          partitionKyeDescriptorFactory!(state.item[partitionKey.key()]),
-        );
+        return comparisonFactory(partitionKey.key(), "<>", state.item[partitionKey.key()]);
       };
 
       return putItemAdditionaOperationsFactory(schema, {
@@ -127,9 +121,13 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
       };
 
       if (state.condition) {
-        const serializationResult = serializeConditionDef(state.condition, {
-          conditionIndex: 0,
-        });
+        const serializationResult = serializeConditionDef(
+          state.condition,
+          {
+            conditionIndex: 0,
+          },
+          schemaTupleMap,
+        );
 
         conditionValuesHost.condition = serializationResult.condition;
         conditionValuesHost.expressionAttributeValues = serializationResult.valuePlaceholders;
