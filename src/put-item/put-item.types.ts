@@ -20,6 +20,7 @@ import {
   TupledTableSchema,
 } from "../schema/schema.types";
 import { GenericInterfaceTableSchema, GenericTupleTableSchema } from "../general-test";
+import { PutItemCommandOutput } from "@aws-sdk/client-dynamodb";
 
 export type PutItemReturnValues = "ALL_OLD" | "NONE";
 
@@ -62,6 +63,8 @@ export type PutOperationAdditionalParamsBuilder<TS> = {
   returnItemCollectionMetrics: (value: ReturnItemCommectionMetricsValues) => PutOperationAdditionalParamsBuilder<TS>;
 
   build: () => PutItemOperationDef;
+
+  execute: () => Promise<PutItemCommandOutput>;
 };
 
 export type PutOperationBuilder<IS, TS> = {

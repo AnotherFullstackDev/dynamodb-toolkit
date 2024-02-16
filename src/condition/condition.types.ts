@@ -231,7 +231,7 @@ export const queryBuilderOperations = <
   context: OperationContext,
 ): BuilderOperations<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => {
   return {
-    put: () => putItemFacadeFactory(schema),
+    put: () => putItemFacadeFactory(schema, context),
     query: () => queryOperationBuilder(schema, indexes, context),
     scan: () => null as any,
     get: () => null as any,

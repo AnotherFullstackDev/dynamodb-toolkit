@@ -9,6 +9,7 @@ import {
 } from "../condition/condition.types";
 import {
   GenericCondition,
+  OperationContext,
   OperationType,
   ReturnConsumedCapacityValues,
   ReturnItemCommectionMetricsValues,
@@ -32,6 +33,7 @@ import {
   getDescriptorFactoryForValue,
   transformValueToTypeDescriptor,
 } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
+import { PutItemCommandOutput } from "@aws-sdk/client-dynamodb";
 
 type PutItemStateType = {
   item: Record<string, unknown>;
@@ -45,6 +47,7 @@ type PutItemStateType = {
 const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
   schema: TS,
   state: PutItemStateType,
+  context: OperationContext,
 ): PutOperationAdditionalParamsBuilder<TS> => {
   const schemaTupleMap = schema;
   // const schemaTupleMap = new TupleMap("ROOT", schema as any); // @TODO: fix it
@@ -53,10 +56,14 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
     condition: function (builder: ConditionExpressionBuilder<any>): PutOperationAdditionalParamsBuilder<TS> {
       const conditions = runConditionBuilder(builder);
 
-      return putItemAdditionaOperationsFactory(schema, {
-        ...state,
-        condition: conditions,
-      });
+      return putItemAdditionaOperationsFactory(
+        schema,
+        {
+          ...state,
+          condition: conditions,
+        },
+        context,
+      );
     },
     throwIfExists: function (): PutOperationAdditionalParamsBuilder<TS> {
       if (state.condition) {
@@ -87,30 +94,46 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
         return comparisonFactory(partitionKey.key(), "<>", state.item[partitionKey.key()]);
       };
 
-      return putItemAdditionaOperationsFactory(schema, {
-        ...state,
-        condition: runConditionBuilder(builder),
-      });
+      return putItemAdditionaOperationsFactory(
+        schema,
+        {
+          ...state,
+          condition: runConditionBuilder(builder),
+        },
+        context,
+      );
     },
     returnValues: function (value: PutItemReturnValues): PutOperationAdditionalParamsBuilder<TS> {
-      return putItemAdditionaOperationsFactory(schema, {
-        ...state,
-        returnValues: value,
-      });
+      return putItemAdditionaOperationsFactory(
+        schema,
+        {
+          ...state,
+          returnValues: value,
+        },
+        context,
+      );
     },
     returnConsumedCapacity: function (capacity: ReturnConsumedCapacityValues): PutOperationAdditionalParamsBuilder<TS> {
-      return putItemAdditionaOperationsFactory(schema, {
-        ...state,
-        returnConsumedCapacity: capacity,
-      });
+      return putItemAdditionaOperationsFactory(
+        schema,
+        {
+          ...state,
+          returnConsumedCapacity: capacity,
+        },
+        context,
+      );
     },
     returnItemCollectionMetrics: function (
       value: ReturnItemCommectionMetricsValues,
     ): PutOperationAdditionalParamsBuilder<TS> {
-      return putItemAdditionaOperationsFactory(schema, {
-        ...state,
-        returnItemCollectionMetrics: value,
-      });
+      return putItemAdditionaOperationsFactory(
+        schema,
+        {
+          ...state,
+          returnItemCollectionMetrics: value,
+        },
+        context,
+      );
     },
     build: function (): PutItemOperationDef {
       const conditionValuesHost: Pick<
@@ -147,6 +170,11 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
         returnItemCollectionMetrics: state.returnItemCollectionMetrics,
       };
     },
+    execute: async function () {
+      const operationDef = result.build();
+
+      return (await context.runner(context.client, context.tableName, operationDef)) as PutItemCommandOutput;
+    },
   };
 
   return result;
@@ -157,6 +185,7 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
 export const putItemFacadeFactory = <S extends TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>>(
   // export const putItemFacadeFactory = <S extends GenericTupleTableSchema>(
   schema: S,
+  context: OperationContext,
 ): PutOperationBuilder<
   TransformTableSchemaIntoSchemaInterfacesMap<InferTupledMap<S>>,
   TransformTableSchemaIntoTupleSchemasMap<InferTupledMap<S>>
@@ -171,14 +200,18 @@ export const putItemFacadeFactory = <S extends TupleMapBuilderResult<unknown, Ge
         throw new Error(`Schema for model ${name} is not found!`);
       }
 
-      return putItemAdditionaOperationsFactory(modelSchema.value(), {
-        // item: transformValueToTypeDescriptor(modelSchema.value(), value),
-        item: value,
-        condition: null,
-        returnValues: null,
-        returnConsumedCapacity: null,
-        returnItemCollectionMetrics: null,
-      }) as any; //TODO: fix it
+      return putItemAdditionaOperationsFactory(
+        modelSchema.value(),
+        {
+          // item: transformValueToTypeDescriptor(modelSchema.value(), value),
+          item: value,
+          condition: null,
+          returnValues: null,
+          returnConsumedCapacity: null,
+          returnItemCollectionMetrics: null,
+        },
+        context,
+      ) as any; //TODO: fix it
     },
   } satisfies PutOperationBuilder<GenericInterfaceTableSchema, GenericTupleBuilderResultSchema>;
 
