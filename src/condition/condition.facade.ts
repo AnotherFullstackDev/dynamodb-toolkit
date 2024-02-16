@@ -8,7 +8,7 @@ import {
   LogicalOperators,
   OperatorDefinition,
 } from "./condition.types";
-import { getDescriptorFactoryForValueByPath } from "../schema/schema-to-type-descriptors.utils";
+import { getDescriptorFactoryForValueByPath } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
 
 export const comparisonOperationFactory: ComparisonOperatorFactory<string, Record<string, unknown>, string> = (
   field,
@@ -37,12 +37,37 @@ export const logicalOperationFactory = (
   },
 });
 
-/**
- * Common implementations
- * - transformation of fields into placeholders and aliases
- * - transformation of values into placeholders and aliases
- * - creation of type descriptors for field values
- */
+export const getAttributeNamePlaceholder = (field: string, suffix: string | number) => {
+  const isNestedPath = field.includes(".");
+  if (isNestedPath) {
+    const pathParts = field.split(".");
+    const pathWithPlaceholders = pathParts.reduce<{ path: string[]; placeholders: Record<string, string> }>(
+      (result, item, idx) => {
+        // const attributeNamePlaceholder = `#${item}_idx_${idx}_${suffix}`;
+        const attributeNamePlaceholder = `#${item}`;
+
+        result.path.push(attributeNamePlaceholder);
+        result.placeholders[attributeNamePlaceholder] = item;
+
+        return result;
+      },
+      { path: [], placeholders: {} },
+    );
+
+    return {
+      attributeNamePlaceholder: pathWithPlaceholders.path.join("."),
+      attributeNamePlaceholderValues: pathWithPlaceholders.placeholders,
+    };
+  }
+
+  const attributeNamePlaceholder = `#${field}_${suffix}`;
+  return {
+    attributeNamePlaceholder,
+    attributeNamePlaceholderValues: {
+      [attributeNamePlaceholder]: field,
+    },
+  };
+};
 
 // @TODO: an entity schema must be used during serialization to get proper  type descriptors
 export const serializeConditionDef = (
@@ -95,38 +120,6 @@ export const serializeConditionDef = (
   }
 
   if (value.type === "conditional") {
-    const getAttributeNamePlaceholder = (field: string, suffix: string | number) => {
-      const isNestedPath = field.includes(".");
-      if (isNestedPath) {
-        const pathParts = value.operator.field.split(".");
-        const pathWithPlaceholders = pathParts.reduce<{ path: string[]; placeholders: Record<string, string> }>(
-          (result, item, idx) => {
-            // const attributeNamePlaceholder = `#${item}_idx_${idx}_${suffix}`;
-            const attributeNamePlaceholder = `#${item}`;
-
-            result.path.push(attributeNamePlaceholder);
-            result.placeholders[attributeNamePlaceholder] = item;
-
-            return result;
-          },
-          { path: [], placeholders: {} },
-        );
-
-        return {
-          attributeNamePlaceholder: pathWithPlaceholders.path.join("."),
-          attributeNamePlaceholderValues: pathWithPlaceholders.placeholders,
-        };
-      }
-
-      const attributeNamePlaceholder = `#${field}_${suffix}`;
-      return {
-        attributeNamePlaceholder,
-        attributeNamePlaceholderValues: {
-          [attributeNamePlaceholder]: field,
-        },
-      };
-    };
-
     const { attributeNamePlaceholder, attributeNamePlaceholderValues } = getAttributeNamePlaceholder(
       value.operator.field,
       state.conditionIndex,

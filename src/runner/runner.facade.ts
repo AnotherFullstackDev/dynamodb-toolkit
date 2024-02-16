@@ -3,11 +3,11 @@ import { PutItemOperationDef } from "../put-item/put-item.types";
 import { OperationDefBase, OperationType } from "../operations-common";
 import { QueryOperationDef } from "../query/query.types";
 
-type SupportedOperationDefsByRunner = PutItemOperationDef | QueryOperationDef;
+export type SupportedOperationDefsByRunner = PutItemOperationDef | QueryOperationDef;
 
 // type ConvertBuilderResultToCommandParams = PutItemOperationDef;
 
-type ReturnValue<T extends OperationDefBase<OperationType>> = T["type"] extends OperationType.PUT
+export type ReturnValue<T extends OperationDefBase<OperationType>> = T["type"] extends OperationType.PUT
   ? PutItemCommand
   : T["type"] extends OperationType.QUERY
   ? QueryCommand

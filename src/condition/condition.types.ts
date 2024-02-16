@@ -11,7 +11,7 @@ import {
 } from "../attribute/attribute";
 import { DeleteOperationBuilder } from "../delete-item";
 import { GetItemOperationBuilder } from "../get-item";
-import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "../operations-common";
+import { InferProjectionFieldsFromSchemas, OperationContext, ReturnConsumedCapacityValues } from "../operations-common";
 import { putItemFacadeFactory } from "../put-item/put-item.facade";
 import { PutOperationBuilder } from "../put-item/put-item.types";
 import {
@@ -29,6 +29,8 @@ import { GenericTupleBuilderResultSchema } from "../general-test";
 import { UpdateOperationBuilder } from "../update-item";
 import { QueryOperationBuilder } from "../query/query.types";
 import { queryOperationBuilder } from "../query/query.facade";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -187,7 +189,11 @@ type ScanOperationBuilder<S> = {
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => ScanOperationBuilder<S>;
 };
 
-type Builder<S, IDX> = {
+type BuilderInitizlizer<S, IDX> = {
+  withContext: (context: OperationContext) => BuilderOperations<S, IDX>;
+};
+
+type BuilderOperations<S, IDX> = {
   query: () => QueryOperationBuilder<
     TransformTableSchemaIntoTupleSchemasMap<S>,
     { [K in keyof IDX]: TransformTableSchemaIntoTupleSchemasMap<IDX[K]> }
@@ -202,18 +208,35 @@ type Builder<S, IDX> = {
   delete: () => DeleteOperationBuilder<S>;
 };
 
+type Builder<S, IDX> = BuilderInitizlizer<S, IDX>;
+
 export const queryBuilder = <
   S extends TupleMapBuilderResult<any, GenericTupleBuilderResultSchema>,
   IDX extends Record<string, TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>>,
 >(
   schema: S,
   indexes: IDX = {} as IDX,
-): Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => ({
-  put: () => putItemFacadeFactory(schema),
-  query: () => queryOperationBuilder(schema, indexes),
-  scan: () => null as any,
-  get: () => null as any,
-  update: () => null as any,
-  delete: () => null as any,
-});
+): BuilderInitizlizer<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => {
+  return {
+    withContext: (context: OperationContext) => queryBuilderOperations(schema, indexes, context),
+  };
+};
+
+export const queryBuilderOperations = <
+  S extends TupleMapBuilderResult<any, GenericTupleBuilderResultSchema>,
+  IDX extends Record<string, TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>>,
+>(
+  schema: S,
+  indexes: IDX = {} as IDX,
+  context: OperationContext,
+): BuilderOperations<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => {
+  return {
+    put: () => putItemFacadeFactory(schema),
+    query: () => queryOperationBuilder(schema, indexes, context),
+    scan: () => null as any,
+    get: () => null as any,
+    update: () => null as any,
+    delete: () => null as any,
+  };
+};
 // } as unknown as Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }>;

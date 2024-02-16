@@ -1,3 +1,4 @@
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   ComparisonOperatorDefinition,
   EntitySchema,
@@ -5,6 +6,7 @@ import {
   OperatorDefinition,
 } from "./condition/condition.types";
 import { CombineArrayElementsViaUnion, ConcatenateArrays } from "./utility-types";
+import { SupportedOperationDefsByRunner } from "./runner/runner.facade";
 
 type SchemaKeys<S> = S extends [infer F, ...infer R] ? (F extends [infer K, infer S] ? [K, ...SchemaKeys<R>] : F) : S;
 
@@ -40,3 +42,9 @@ export type ConditionExpressionPlaceholdersHost = {
 export type GenericCondition =
   | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
   | OperatorDefinition<"logical", LogicalOperatorDefinition>;
+
+export type OperationContext = {
+  client: DynamoDBClient;
+  tableName: string;
+  runner: (client: DynamoDBClient, tableName: string, operationDef: SupportedOperationDefsByRunner) => Promise<unknown>;
+};

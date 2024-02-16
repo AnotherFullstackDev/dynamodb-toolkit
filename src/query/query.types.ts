@@ -10,6 +10,7 @@ import {
   OperationType,
   ReturnConsumedCapacityValues,
 } from "../operations-common";
+import { QueryCommandOutput } from "@aws-sdk/client-dynamodb";
 
 export type QueryOperationIndexSelector<IDX> = {
   index: <N extends keyof IDX>(name: N) => SingleTableQueryOperationBuilder<IDX[N]>;
@@ -27,6 +28,8 @@ export type SingleTableQueryOperationBuilder<S> = {
   limit: (limit: number) => SingleTableQueryOperationBuilder<S>;
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => SingleTableQueryOperationBuilder<S>;
   build: () => QueryOperationDef;
+  execute: () => Promise<QueryCommandOutput>;
+  executeAndReturnValue: <T = unknown>() => Promise<T>;
 };
 
 export type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;

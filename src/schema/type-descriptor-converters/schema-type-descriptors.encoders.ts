@@ -10,64 +10,71 @@ import {
   isPartitionKeyAttribute,
   isSortKeyAttribute,
   isStringAttribute,
-} from "../attribute/attribute";
-import { TupleKeyValue, TupleMap } from "./schema-tuple-map.facade";
+} from "../../attribute/attribute";
+import { TupleKeyValue, TupleMap } from "../schema-tuple-map.facade";
+import {
+  BinarySetTypeDescriptor,
+  BinaryTypeDescriptor,
+  BooleanTypeDescriptor,
+  ListTypeDescriptor,
+  MapTypeDescriptor,
+  NullTypeDescriptor,
+  NumberSetTypeDescriptor,
+  NumberTypeDescriptor,
+  StringSetTypeDescriptor,
+  StringTypeDescriptor,
+  TypeDescriptor,
+} from "./schema-type-descriptors.types";
 
-export type TypeDescriptorFactory<T> = (value: T) => TypeDescriptorHost;
+export type TypeDescriptorFactory = (value: any) => TypeDescriptor<string, unknown>;
 
 export type TypeDescriptorHost = Record<string, any>;
 
-export const stringDescriptorFactory: TypeDescriptorFactory<string> = (value: string) => ({
+export const stringDescriptorFactory = (value: string): StringTypeDescriptor => ({
   S: value,
 });
 
-export const numberDescriptorFactory: TypeDescriptorFactory<number> = (value: number) => ({
-  //   N: value.toString(),
+export const numberDescriptorFactory = (value: number): NumberTypeDescriptor => ({
   N: String(value),
 });
 
-export const booleanDescriptorFactory: TypeDescriptorFactory<boolean> = (value: boolean) => ({
+export const booleanDescriptorFactory = (value: boolean): BooleanTypeDescriptor => ({
   BOOL: value,
 });
 
-export const binaryDescriptorFactory: TypeDescriptorFactory<ArrayBuffer> = (value: ArrayBuffer) => ({
+export const binaryDescriptorFactory = (value: ArrayBuffer): BinaryTypeDescriptor => ({
   B: value,
 });
 
-export const dateDescriptorFactory: TypeDescriptorFactory<Date> = (value: Date) =>
+export const dateDescriptorFactory = (value: Date): StringTypeDescriptor =>
   stringDescriptorFactory(value.toISOString());
 
-export const nullDescriptorFactory: TypeDescriptorFactory<null> = (value: null) => ({
+export const nullDescriptorFactory = (value: null): NullTypeDescriptor => ({
   NULL: value,
 });
 
-export const mapDescriptorFactory: TypeDescriptorFactory<Record<string, unknown>> = (
-  value: Record<string, unknown>,
-) => ({
+export const mapDescriptorFactory = (value: Record<string, unknown>): MapTypeDescriptor => ({
   M: value,
 });
 
-export const listDescriptorFactory: TypeDescriptorFactory<unknown[]> = (value: unknown[]) => ({
+export const listDescriptorFactory = (value: unknown[]): ListTypeDescriptor => ({
   L: value,
 });
 
-export const stringSetDescriptorFactory: TypeDescriptorFactory<string[]> = (value: string[]) => ({
+export const stringSetDescriptorFactory = (value: string[]): StringSetTypeDescriptor => ({
   SS: value,
 });
 
-export const numberSetDescriptorFactory: TypeDescriptorFactory<number[]> = (value: number[]) => ({
+export const numberSetDescriptorFactory = (value: number[]): NumberSetTypeDescriptor => ({
   //   NS: value.map((number) => number.toString()),
   NS: value,
 });
 
-export const binarySetDescriptorFactory: TypeDescriptorFactory<ArrayBuffer[]> = (value: ArrayBuffer[]) => ({
+export const binarySetDescriptorFactory = (value: ArrayBuffer[]): BinarySetTypeDescriptor => ({
   BS: value,
 });
 
-export const getDescriptorFactoryForValueByPath = (
-  schema: TupleMap,
-  path: string,
-): TypeDescriptorFactory<any> | null => {
+export const getDescriptorFactoryForValueByPath = (schema: TupleMap, path: string): TypeDescriptorFactory | null => {
   const value = schema.getByPath(path);
 
   if (!value) {
@@ -79,7 +86,7 @@ export const getDescriptorFactoryForValueByPath = (
   return getDescriptorFactoryForValue(innerValue);
 };
 
-export const getDescriptorFactoryForValue = (innerValue: unknown): TypeDescriptorFactory<any> | null => {
+export const getDescriptorFactoryForValue = (innerValue: unknown): TypeDescriptorFactory | null => {
   if (isPartitionKeyAttribute(innerValue) || isSortKeyAttribute(innerValue)) {
     return getDescriptorFactoryForValue(getDataType(innerValue));
   }

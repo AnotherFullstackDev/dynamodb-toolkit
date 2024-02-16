@@ -31,7 +31,7 @@ import {
 import {
   getDescriptorFactoryForValue,
   transformValueToTypeDescriptor,
-} from "../schema/schema-to-type-descriptors.utils";
+} from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
 
 type PutItemStateType = {
   item: Record<string, unknown>;

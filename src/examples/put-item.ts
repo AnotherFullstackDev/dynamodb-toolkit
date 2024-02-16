@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { queryBuilder } from "../condition/condition.types";
 import { run } from "../runner/runner.facade";
-import { tableSchema } from "./example-schema";
+import { tableSchema } from "./example-context";
 
 const qb = queryBuilder(tableSchema);
 
