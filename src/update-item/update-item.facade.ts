@@ -38,8 +38,14 @@ import {
   UpdateOperationBuilder,
 } from "./update-item.types";
 import { isFieldUpdateOperationDef } from "./update-item.utils";
-import { getDescriptorFactoryForValueByPath } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
-import { transformTypeDescriptorToValue } from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
+import {
+  getDescriptorFactoryForValueByPath,
+  transformValueToTypeDescriptor,
+} from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
+import {
+  getDecoderFactoryForValue,
+  transformTypeDescriptorToValue,
+} from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
 
 export const updateIndividualItemOperationBuilderFactory = <S>(
   schema: TupleMap,
@@ -76,11 +82,10 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
         // But that should not be a problem because the field placeholder just reflects its name
         const fieldPlaceholder = getAttributeNamePlaceholder(operationDef.field, "");
         const valuePlaceholder = getValuePlaceholderFromAttrinuteName(operationDef.field);
-        const valueDescriptor = getDescriptorFactoryForValueByPath(schema, operationDef.field);
-
-        if (!valueDescriptor) {
-          throw new Error(`Descriptor not found for field ${operationDef.field}`);
-        }
+        const encodedValue = transformValueToTypeDescriptor(
+          schema.getByPath(operationDef.field)!.value() as unknown as TupleMap,
+          operationDef.operation.value,
+        );
 
         let statement = null;
 
@@ -108,7 +113,7 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
         attributePlaceholders = { ...attributePlaceholders, ...fieldPlaceholder.attributeNamePlaceholderValues };
         valuePlaceholders = {
           ...valuePlaceholders,
-          [valuePlaceholder]: valueDescriptor(operationDef.operation.value),
+          [valuePlaceholder]: encodedValue,
         };
       }
 

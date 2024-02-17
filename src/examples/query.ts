@@ -5,8 +5,8 @@ import { qb } from "./example-context";
     .query()
     .keyCondition((eb) => eb("name", "=", "John"))
     // .filter((eb) => eb("building.size", ">=", 3000))
-    .projection(["name", "age", "building.street", "building.size"])
-    .limit(1)
+    .projection(["name", "age", "building.street", "building.size", "building.rooms"])
+    // .limit(1)
     .returnConsumedCapacity("TOTAL")
     .executeAndReturnValue();
 

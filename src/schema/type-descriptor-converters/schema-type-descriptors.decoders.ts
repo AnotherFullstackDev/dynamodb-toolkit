@@ -35,6 +35,9 @@ export const getDecoderFactoryForValue = (value: Record<string, unknown>): TypeD
 };
 
 // @TODO: the transformers should be rewritten to be fully driven by a shcema
+
+// @TODO: transformers incorrectly work in cases when schema has a field but the decoded value does not! FIX IT!
+// @TODO: also, transformers do not transform values into their application level types - numbers, dates, etc..! FIX IT!
 export const transformTypeDescriptorToValue = (
   schema: TupleMap | Attribute<AttributeType, unknown>,
   value: Record<string, unknown> | unknown[] | unknown,
@@ -44,6 +47,10 @@ export const transformTypeDescriptorToValue = (
 
     if (!listItemSchema) {
       throw new Error("List item schema is not found");
+    }
+
+    if (!value) {
+      return [];
     }
 
     const listDecoder = getDecoderFactoryForValue(value as ListTypeDescriptor);

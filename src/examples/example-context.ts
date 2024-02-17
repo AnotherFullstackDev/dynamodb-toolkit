@@ -1,5 +1,5 @@
 import { TupleMap } from "../schema/schema-tuple-map.facade";
-import { map, number, partitionKey, sortKey, string } from "../attribute/attribute";
+import { list, map, number, partitionKey, sortKey, string } from "../attribute/attribute";
 import { schema } from "../schema/schema.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import { queryBuilder } from "../condition/condition.types";
@@ -18,6 +18,7 @@ const usersSchema = schema()
         .add("zip", string())
         .add("type", string())
         .add("size", number())
+        .add("rooms", list(map(schema().add("size", number()).build())))
         .build(),
     ),
   )
