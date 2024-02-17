@@ -1,7 +1,4 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { queryBuilder } from "../condition/condition.types";
-import { run } from "../runner/runner.facade";
-import { qb, tableSchema } from "./example-context";
+import { qb } from "./example-context";
 
 (async () => {
   const result = await qb

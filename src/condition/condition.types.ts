@@ -26,11 +26,12 @@ import {
   TupleValue,
 } from "../schema/schema.types";
 import { GenericTupleBuilderResultSchema } from "../general-test";
-import { UpdateOperationBuilder } from "../update-item";
+import { UpdateOperationBuilder } from "../update-item/update-item.types";
 import { QueryOperationBuilder } from "../query/query.types";
 import { queryOperationBuilder } from "../query/query.facade";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
+import { updateItemFacadeFactory } from "../update-item/update-item.facade";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -162,24 +163,28 @@ export type ConditionExpressionBuilder<S> = (
     >
   | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
-// type QueryOperationIndexSelector<IDX> = {
-//   index: <N extends keyof IDX>(name: N) => SingleTableQueryOperationBuilder<IDX[N]>;
-// };
+export type KeyConditionExpressionBuilder<S> = (
+  expressionBuilder: OverloadableComparisonFactory<S>,
 
-// type SingleTableQueryOperationBuilder<S> = {
-//   keyCondition: (
-//     builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-//   ) => SingleTableQueryOperationBuilder<S>;
-//   filter: (
-//     builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
-//   ) => SingleTableQueryOperationBuilder<S>;
-//   projection: (fields: InferProjectionFieldsFromSchemas<S>) => SingleTableQueryOperationBuilder<S>;
-//   offset: (offset: number) => SingleTableQueryOperationBuilder<S>;
-//   limit: (limit: number) => SingleTableQueryOperationBuilder<S>;
-//   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => SingleTableQueryOperationBuilder<S>;
-// };
-
-// type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;
+  // @TODO: add possibility to target specific entity type via generic parameter
+  // Awaits for the results of first usage and a feedback on usefulness on targeting a specific type in the condition expression
+  logicalOperators: {
+    and: (
+      conditions: Array<
+        // @TODO: fix schema types for the logical conditions section
+        OperatorDefinition<
+          "conditional",
+          ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
+        >
+      >,
+    ) => OperatorDefinition<"logical", LogicalOperatorDefinition>;
+  },
+) =>
+  | OperatorDefinition<
+      "conditional",
+      ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
+    >
+  | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
 type ScanOperationBuilder<S> = {
   filter: (builder: ConditionExpressionBuilder<S>) => ScanOperationBuilder<S>;
@@ -216,7 +221,7 @@ export const queryBuilder = <
 >(
   schema: S,
   indexes: IDX = {} as IDX,
-): BuilderInitizlizer<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => {
+): Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }> => {
   return {
     withContext: (context: OperationContext) => queryBuilderOperations(schema, indexes, context),
   };
@@ -235,7 +240,7 @@ export const queryBuilderOperations = <
     query: () => queryOperationBuilder(schema, indexes, context),
     scan: () => null as any,
     get: () => null as any,
-    update: () => null as any,
+    update: () => updateItemFacadeFactory(schema, context),
     delete: () => null as any,
   };
 };

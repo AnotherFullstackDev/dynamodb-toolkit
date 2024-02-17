@@ -1,9 +1,16 @@
-import { AttributeValue, DynamoDBClient, PutItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  AttributeValue,
+  DynamoDBClient,
+  PutItemCommand,
+  QueryCommand,
+  UpdateItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import { PutItemOperationDef } from "../put-item/put-item.types";
 import { OperationDefBase, OperationType } from "../operations-common";
 import { QueryOperationDef } from "../query/query.types";
+import { UpdateItemOperationDef } from "../update-item/update-item.types";
 
-export type SupportedOperationDefsByRunner = PutItemOperationDef | QueryOperationDef;
+export type SupportedOperationDefsByRunner = PutItemOperationDef | QueryOperationDef | UpdateItemOperationDef;
 
 // type ConvertBuilderResultToCommandParams = PutItemOperationDef;
 
@@ -11,6 +18,8 @@ export type ReturnValue<T extends OperationDefBase<OperationType>> = T["type"] e
   ? PutItemCommand
   : T["type"] extends OperationType.QUERY
   ? QueryCommand
+  : T["type"] extends OperationType.UPDATE
+  ? UpdateItemCommand
   : never;
 
 // TODO: write a simple runner that will work with operation builders and submit a request to dynamodb
@@ -42,6 +51,19 @@ export const convertBuilderResultToCommandInput = <T extends SupportedOperationD
         ProjectionExpression: builder.projection ?? undefined,
         Limit: builder.limit ?? undefined,
         ReturnConsumedCapacity: builder.returnConsumedCapacity ?? undefined,
+      }) as ReturnValue<T>;
+
+    case OperationType.UPDATE:
+      return new UpdateItemCommand({
+        TableName: tableName,
+        Key: builder.key as Record<string, AttributeValue>,
+        UpdateExpression: builder.updateExpression,
+        ConditionExpression: builder.condition ?? undefined,
+        ExpressionAttributeNames: builder.expressionAttributeNames ?? undefined,
+        ExpressionAttributeValues: (builder.expressionAttributeValues as Record<string, AttributeValue>) ?? undefined,
+        ReturnValues: builder.returnValues ?? undefined,
+        ReturnConsumedCapacity: builder.returnConsumedCapacity ?? undefined,
+        ReturnItemCollectionMetrics: builder.returnItemCollectionMetrics ?? undefined,
       }) as ReturnValue<T>;
   }
 

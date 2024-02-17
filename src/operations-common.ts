@@ -27,6 +27,7 @@ export type ReturnItemCommectionMetricsValues = "SIZE" | "NONE";
 export enum OperationType {
   PUT = "put",
   QUERY = "query",
+  UPDATE = "update",
 }
 
 export type OperationDefBase<T extends OperationType> = {

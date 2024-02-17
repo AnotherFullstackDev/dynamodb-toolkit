@@ -21,7 +21,7 @@ import {
   TupleKeyValuePeer,
   TupleMapBuilderResult,
 } from "./schema/schema.types";
-import { appendList } from "./update-item";
+import { appendList } from "./update-item/update-item.types";
 import { ScalarTypes } from "./utility-types";
 
 type ExampleUsersEntitySchema = {
@@ -111,6 +111,7 @@ const schemaV2 = schema()
   .build();
 
 queryBuilder(schemaV2)
+  .withContext({ client: null as any } as any)
   .query()
   .keyCondition((eb, { or, and }) =>
     or([
@@ -340,7 +341,7 @@ type Table = InferTupledMap<TableBase2>;
 const tt2: Table = null as any;
 const test_tt2: GenericTupleBuilderResultSchema = tt2;
 const t: TupleMapBuilderResult<Record<string, unknown>, GenericTupleBuilderResultSchema> = tableSchema;
-const qb = queryBuilder(tableSchema);
+const qb = queryBuilder(tableSchema).withContext({} as any);
 
 qb.query()
   .keyCondition((eb) => eb("id", "=", "users#some-random-user-id"))
@@ -378,7 +379,7 @@ qb.get()
   .projection(["title", "content"]);
 
 qb.update()
-  .usersItem()
+  .item("users")
   .key((eb) => eb("id", "=", "users#some-random-user-id"))
   .condition((eb) => eb("age", "=", 20))
   .set({
@@ -401,12 +402,18 @@ qb.update()
   .returnValues("ALL_NEW");
 
 qb.update()
-  .postsItem()
+  .item("posts")
   .set((set) => [
     set("authors", appendList([{ name: "new name" }])),
     set("authors.[0]", { name: "some name" }),
     set("authors.[1].name", "new name"),
     set("content", "new content"),
+
+    // should not work
+    set("authors.[0]", appendList({ name: "some name" })),
+    set("authors.[1].name", 10),
+    set("authors", appendList([{ name: 10 }])),
+    set("authors", appendList([{ name2: "new name" }])),
   ])
   .remove(["title", "content"]);
 

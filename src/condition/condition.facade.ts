@@ -4,11 +4,13 @@ import {
   ComparisonOperatorFactory,
   ConditionExpressionBuilder,
   EntitySchema,
+  KeyConditionExpressionBuilder,
   LogicalOperatorDefinition,
   LogicalOperators,
   OperatorDefinition,
 } from "./condition.types";
 import { getDescriptorFactoryForValueByPath } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
+import { TypeDescriptor } from "../schema/type-descriptor-converters/schema-type-descriptors.types";
 
 export const comparisonOperationFactory: ComparisonOperatorFactory<string, Record<string, unknown>, string> = (
   field,
@@ -69,6 +71,11 @@ export const getAttributeNamePlaceholder = (field: string, suffix: string | numb
   };
 };
 
+export const getValuePlaceholderFromAttrinuteName = (attributeName: string, suffix?: string | number) => {
+  const baseValue = `:${attributeName.replace(".", "_")}`;
+  return suffix === undefined ? baseValue : `${baseValue}_${suffix}`;
+};
+
 // @TODO: an entity schema must be used during serialization to get proper  type descriptors
 export const serializeConditionDef = (
   value:
@@ -126,7 +133,8 @@ export const serializeConditionDef = (
     );
     const valueDescriptor = getDescriptorFactoryForValueByPath(schema, value.operator.field);
     // const attributeNamePlaceholder = `#${value.operator.field}_${state.conditionIndex}`;
-    const valuePlaceholder = `:${value.operator.field.replace(".", "_")}_${state.conditionIndex}`;
+    // const valuePlaceholder = `:${value.operator.field.replace(".", "_")}_${state.conditionIndex}`;
+    const valuePlaceholder = getValuePlaceholderFromAttrinuteName(value.operator.field, state.conditionIndex);
     const condition = [attributeNamePlaceholder, value.operator.operator, valuePlaceholder].join(" ");
 
     return {
@@ -141,11 +149,66 @@ export const serializeConditionDef = (
   throw new Error("Unknown operation type");
 };
 
+const serializeKeyConditionComparison = (
+  value: OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>,
+  schema: TupleMap,
+) => {
+  console.log(value);
+  const valueDescriptor = getDescriptorFactoryForValueByPath(schema, value.operator.field);
+
+  if (!valueDescriptor) {
+    throw new Error(`Descriptor not found for field ${value.operator.field}`);
+  }
+
+  return {
+    [value.operator.field]: valueDescriptor(value.operator.value),
+  };
+};
+
+export const serializeKeyConditionDef = (
+  value:
+    | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
+    | OperatorDefinition<"logical", LogicalOperatorDefinition>,
+  schema: TupleMap,
+): Record<string, TypeDescriptor<string, unknown>> => {
+  if (value.type === "logical") {
+    if (value.operator.operator !== "and") {
+      throw new Error("Only `and` logical operator is supported for key conditions");
+    }
+
+    return Object.assign(
+      {},
+      ...value.operator.conditions.map((value) =>
+        serializeKeyConditionComparison(
+          value as OperatorDefinition<
+            "conditional",
+            ComparisonOperatorDefinition<string, string, EntitySchema<string>>
+          >,
+          schema,
+        ),
+      ),
+    );
+  }
+
+  return serializeKeyConditionComparison(
+    value as OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>,
+    schema,
+  );
+};
+
 export const runConditionBuilder = (builder: ConditionExpressionBuilder<any>) => {
   const conditions = builder(comparisonOperationFactory, {
     and: (conditions) => logicalOperationFactory("and", conditions),
     or: (conditions) => logicalOperationFactory("or", conditions),
     not: (conditions) => logicalOperationFactory("not", conditions),
+  });
+
+  return conditions;
+};
+
+export const runKeyConditionBuilder = (builder: KeyConditionExpressionBuilder<any>) => {
+  const conditions = builder(comparisonOperationFactory, {
+    and: (conditions) => logicalOperationFactory("and", conditions),
   });
 
   return conditions;
