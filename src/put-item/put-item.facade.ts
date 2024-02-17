@@ -12,8 +12,8 @@ import {
   OperationContext,
   OperationType,
   ReturnConsumedCapacityValues,
-  ReturnItemCommectionMetricsValues,
-} from "../operations-common";
+  ReturnItemCollectionMetricsValues,
+} from "../operations-common/operations-common.types";
 import { TupleKeyValue, TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {
@@ -40,7 +40,7 @@ type PutItemStateType = {
   condition: GenericCondition | null;
   returnValues: PutItemReturnValues | null;
   returnConsumedCapacity: ReturnConsumedCapacityValues | null;
-  returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;
+  returnItemCollectionMetrics: ReturnItemCollectionMetricsValues | null;
 };
 
 // const putItemAdditionaOperationsFactory = <TS extends GenericTupleBuilderResultSchema>(
@@ -124,7 +124,7 @@ const putItemAdditionaOperationsFactory = <TS extends TupleMap>(
       );
     },
     returnItemCollectionMetrics: function (
-      value: ReturnItemCommectionMetricsValues,
+      value: ReturnItemCollectionMetricsValues,
     ): PutOperationAdditionalParamsBuilder<TS> {
       return putItemAdditionaOperationsFactory(
         schema,

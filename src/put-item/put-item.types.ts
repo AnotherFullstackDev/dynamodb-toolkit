@@ -5,12 +5,12 @@
  */
 
 import {
-  ConditionExpressionPlaceholdersHost,
+  ExpressionPlaceholdersHost,
   OperationDefBase,
   OperationType,
   ReturnConsumedCapacityValues,
-  ReturnItemCommectionMetricsValues,
-} from "../operations-common";
+  ReturnItemCollectionMetricsValues,
+} from "../operations-common/operations-common.types";
 import { ConditionExpressionBuilder } from "../condition/condition.types";
 import {
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
@@ -25,14 +25,14 @@ import { PutItemCommandOutput } from "@aws-sdk/client-dynamodb";
 export type PutItemReturnValues = "ALL_OLD" | "NONE";
 
 export type PutItemOperationDef = OperationDefBase<OperationType.PUT> &
-  ConditionExpressionPlaceholdersHost & {
+  ExpressionPlaceholdersHost & {
     item: Record<string, unknown>;
     condition: string | null;
     // expressionAttributeNames: Record<string, string> | null;
     // expressionAttributeValues: Record<string, unknown> | null;
     returnValues: PutItemReturnValues | null;
     // returnConsumedCapacity: ReturnConsumedCapacityValues | null;
-    returnItemCollectionMetrics: ReturnItemCommectionMetricsValues | null;
+    returnItemCollectionMetrics: ReturnItemCollectionMetricsValues | null;
   };
 
 /**
@@ -60,7 +60,7 @@ export type PutOperationAdditionalParamsBuilder<TS> = {
 
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => PutOperationAdditionalParamsBuilder<TS>;
 
-  returnItemCollectionMetrics: (value: ReturnItemCommectionMetricsValues) => PutOperationAdditionalParamsBuilder<TS>;
+  returnItemCollectionMetrics: (value: ReturnItemCollectionMetricsValues) => PutOperationAdditionalParamsBuilder<TS>;
 
   build: () => PutItemOperationDef;
 

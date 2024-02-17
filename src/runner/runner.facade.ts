@@ -1,16 +1,22 @@
 import {
   AttributeValue,
+  DeleteItemCommand,
   DynamoDBClient,
   PutItemCommand,
   QueryCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { PutItemOperationDef } from "../put-item/put-item.types";
-import { OperationDefBase, OperationType } from "../operations-common";
+import { OperationDefBase, OperationType } from "../operations-common/operations-common.types";
 import { QueryOperationDef } from "../query/query.types";
 import { UpdateItemOperationDef } from "../update-item/update-item.types";
+import { DeleteItemOperationDef } from "../delete-item/delete-item.types";
 
-export type SupportedOperationDefsByRunner = PutItemOperationDef | QueryOperationDef | UpdateItemOperationDef;
+export type SupportedOperationDefsByRunner =
+  | PutItemOperationDef
+  | QueryOperationDef
+  | UpdateItemOperationDef
+  | DeleteItemOperationDef;
 
 // type ConvertBuilderResultToCommandParams = PutItemOperationDef;
 
@@ -20,6 +26,8 @@ export type ReturnValue<T extends OperationDefBase<OperationType>> = T["type"] e
   ? QueryCommand
   : T["type"] extends OperationType.UPDATE
   ? UpdateItemCommand
+  : T["type"] extends OperationType.DELETE
+  ? DeleteItemCommand
   : never;
 
 // TODO: write a simple runner that will work with operation builders and submit a request to dynamodb
@@ -58,6 +66,18 @@ export const convertBuilderResultToCommandInput = <T extends SupportedOperationD
         TableName: tableName,
         Key: builder.key as Record<string, AttributeValue>,
         UpdateExpression: builder.updateExpression,
+        ConditionExpression: builder.condition ?? undefined,
+        ExpressionAttributeNames: builder.expressionAttributeNames ?? undefined,
+        ExpressionAttributeValues: (builder.expressionAttributeValues as Record<string, AttributeValue>) ?? undefined,
+        ReturnValues: builder.returnValues ?? undefined,
+        ReturnConsumedCapacity: builder.returnConsumedCapacity ?? undefined,
+        ReturnItemCollectionMetrics: builder.returnItemCollectionMetrics ?? undefined,
+      }) as ReturnValue<T>;
+
+    case OperationType.DELETE:
+      return new DeleteItemCommand({
+        TableName: tableName,
+        Key: builder.key as Record<string, AttributeValue>,
         ConditionExpression: builder.condition ?? undefined,
         ExpressionAttributeNames: builder.expressionAttributeNames ?? undefined,
         ExpressionAttributeValues: (builder.expressionAttributeValues as Record<string, AttributeValue>) ?? undefined,

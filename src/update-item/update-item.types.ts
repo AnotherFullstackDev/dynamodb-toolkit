@@ -12,13 +12,13 @@ import {
 } from "../attribute/attribute";
 import { ConditionExpressionBuilder, KeyConditionExpressionBuilder } from "../condition/condition.types";
 import {
-  ConditionExpressionPlaceholdersHost,
+  ExpressionPlaceholdersHost,
   GenericCondition,
   InferProjectionFieldsFromSchemas,
   OperationDefBase,
   OperationType,
   ReturnConsumedCapacityValues,
-} from "../operations-common";
+} from "../operations-common/operations-common.types";
 import {
   ExtractEntityKeysFromTableSchema,
   FilterTableSchemaFieldsByType,
@@ -290,7 +290,7 @@ export type UpdateItemOperationBuilderState = {
 };
 
 export type UpdateItemOperationDef = OperationDefBase<OperationType.UPDATE> &
-  ConditionExpressionPlaceholdersHost & {
+  ExpressionPlaceholdersHost & {
     key: Record<string, unknown>;
     updateExpression: string;
     condition: string | null;

@@ -4,12 +4,12 @@ import {
 } from "../schema/schema.types";
 import { ConditionExpressionBuilder } from "../condition/condition.types";
 import {
-  ConditionExpressionPlaceholdersHost,
+  ExpressionPlaceholdersHost,
   InferProjectionFieldsFromSchemas,
   OperationDefBase,
   OperationType,
   ReturnConsumedCapacityValues,
-} from "../operations-common";
+} from "../operations-common/operations-common.types";
 import { QueryCommandOutput } from "@aws-sdk/client-dynamodb";
 
 export type QueryOperationIndexSelector<IDX> = {
@@ -35,7 +35,7 @@ export type SingleTableQueryOperationBuilder<S> = {
 export type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;
 
 export type QueryOperationDef = OperationDefBase<OperationType.QUERY> &
-  ConditionExpressionPlaceholdersHost & {
+  ExpressionPlaceholdersHost & {
     keyCondition: string;
     filter: string | null;
     projection: string | null;

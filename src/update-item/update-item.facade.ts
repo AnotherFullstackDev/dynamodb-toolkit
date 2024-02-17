@@ -16,8 +16,8 @@ import {
   OperationContext,
   OperationType,
   ReturnConsumedCapacityValues,
-  ReturnItemCommectionMetricsValues,
-} from "../operations-common";
+  ReturnItemCollectionMetricsValues,
+} from "../operations-common/operations-common.types";
 import { TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {
@@ -173,7 +173,7 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
       );
     },
     returnItemCollectionMetrics: function (
-      value: ReturnItemCommectionMetricsValues,
+      value: ReturnItemCollectionMetricsValues,
     ): UpdateIndividualItemOperationBuilder<S> {
       return updateIndividualItemOperationBuilderFactory(
         schema,

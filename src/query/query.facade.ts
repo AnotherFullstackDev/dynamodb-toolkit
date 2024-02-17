@@ -8,7 +8,7 @@ import {
   OperationContext,
   OperationType,
   ReturnConsumedCapacityValues,
-} from "../operations-common";
+} from "../operations-common/operations-common.types";
 import { TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {

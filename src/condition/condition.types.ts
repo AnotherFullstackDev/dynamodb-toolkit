@@ -9,9 +9,13 @@ import {
   SetAttribute,
   SortKey,
 } from "../attribute/attribute";
-import { DeleteOperationBuilder } from "../delete-item";
+import { DeleteItemOperationBuilder } from "../delete-item/delete-item.types";
 import { GetItemOperationBuilder } from "../get-item";
-import { InferProjectionFieldsFromSchemas, OperationContext, ReturnConsumedCapacityValues } from "../operations-common";
+import {
+  InferProjectionFieldsFromSchemas,
+  OperationContext,
+  ReturnConsumedCapacityValues,
+} from "../operations-common/operations-common.types";
 import { putItemFacadeFactory } from "../put-item/put-item.facade";
 import { PutOperationBuilder } from "../put-item/put-item.types";
 import {
@@ -32,6 +36,7 @@ import { queryOperationBuilder } from "../query/query.facade";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
 import { updateItemFacadeFactory } from "../update-item/update-item.facade";
+import { deleteItemFacadeFactory } from "../delete-item/delete-item.facade";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -210,7 +215,7 @@ type BuilderOperations<S, IDX> = {
     TransformTableSchemaIntoTupleSchemasMap<S>
   >;
   update: () => UpdateOperationBuilder<S>;
-  delete: () => DeleteOperationBuilder<S>;
+  delete: () => DeleteItemOperationBuilder<S>;
 };
 
 type Builder<S, IDX> = BuilderInitizlizer<S, IDX>;
@@ -241,7 +246,7 @@ export const queryBuilderOperations = <
     scan: () => null as any,
     get: () => null as any,
     update: () => updateItemFacadeFactory(schema, context),
-    delete: () => null as any,
+    delete: () => deleteItemFacadeFactory(schema, context),
   };
 };
 // } as unknown as Builder<InferTupledMap<S>, { [K in keyof IDX]: InferTupledMap<IDX[K]> }>;

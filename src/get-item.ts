@@ -2,7 +2,10 @@
 // - use all the available primary keys;
 
 import { ConditionExpressionBuilder } from "./condition/condition.types";
-import { InferProjectionFieldsFromSchemas, ReturnConsumedCapacityValues } from "./operations-common";
+import {
+  InferProjectionFieldsFromSchemas,
+  ReturnConsumedCapacityValues,
+} from "./operations-common/operations-common.types";
 import { PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList } from "./schema/schema.types";
 
 type GetIndividualItemOperationBuilder<S> = {

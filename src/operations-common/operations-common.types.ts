@@ -4,9 +4,9 @@ import {
   EntitySchema,
   LogicalOperatorDefinition,
   OperatorDefinition,
-} from "./condition/condition.types";
-import { CombineArrayElementsViaUnion, ConcatenateArrays } from "./utility-types";
-import { SupportedOperationDefsByRunner } from "./runner/runner.facade";
+} from "../condition/condition.types";
+import { CombineArrayElementsViaUnion, ConcatenateArrays } from "../utility-types";
+import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
 
 type SchemaKeys<S> = S extends [infer F, ...infer R] ? (F extends [infer K, infer S] ? [K, ...SchemaKeys<R>] : F) : S;
 
@@ -22,12 +22,13 @@ export type InferProjectionFieldsFromSchemas<T> = Array<
 
 export type ReturnConsumedCapacityValues = "INDEXES" | "TOTAL" | "NONE";
 
-export type ReturnItemCommectionMetricsValues = "SIZE" | "NONE";
+export type ReturnItemCollectionMetricsValues = "SIZE" | "NONE";
 
 export enum OperationType {
   PUT = "put",
   QUERY = "query",
   UPDATE = "update",
+  DELETE = "delete",
 }
 
 export type OperationDefBase<T extends OperationType> = {
@@ -35,7 +36,7 @@ export type OperationDefBase<T extends OperationType> = {
   returnConsumedCapacity: ReturnConsumedCapacityValues | null;
 };
 
-export type ConditionExpressionPlaceholdersHost = {
+export type ExpressionPlaceholdersHost = {
   expressionAttributeNames: Record<string, string> | null;
   expressionAttributeValues: Record<string, unknown> | null;
 };
