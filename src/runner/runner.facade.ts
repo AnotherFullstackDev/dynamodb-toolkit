@@ -2,6 +2,8 @@ import {
   AttributeValue,
   DeleteItemCommand,
   DynamoDBClient,
+  GetItemCommand,
+  GetItemCommandOutput,
   PutItemCommand,
   QueryCommand,
   UpdateItemCommand,
@@ -11,12 +13,14 @@ import { OperationDefBase, OperationType } from "../operations-common/operations
 import { QueryOperationDef } from "../query/query.types";
 import { UpdateItemOperationDef } from "../update-item/update-item.types";
 import { DeleteItemOperationDef } from "../delete-item/delete-item.types";
+import { GetItemOperationDef } from "../get-item/get-item.types";
 
 export type SupportedOperationDefsByRunner =
   | PutItemOperationDef
   | QueryOperationDef
   | UpdateItemOperationDef
-  | DeleteItemOperationDef;
+  | DeleteItemOperationDef
+  | GetItemOperationDef;
 
 // type ConvertBuilderResultToCommandParams = PutItemOperationDef;
 
@@ -28,6 +32,8 @@ export type ReturnValue<T extends OperationDefBase<OperationType>> = T["type"] e
   ? UpdateItemCommand
   : T["type"] extends OperationType.DELETE
   ? DeleteItemCommand
+  : T["type"] extends OperationType.GET_ITEM
+  ? GetItemCommand
   : never;
 
 // TODO: write a simple runner that will work with operation builders and submit a request to dynamodb
@@ -84,6 +90,15 @@ export const convertBuilderResultToCommandInput = <T extends SupportedOperationD
         ReturnValues: builder.returnValues ?? undefined,
         ReturnConsumedCapacity: builder.returnConsumedCapacity ?? undefined,
         ReturnItemCollectionMetrics: builder.returnItemCollectionMetrics ?? undefined,
+      }) as ReturnValue<T>;
+
+    case OperationType.GET_ITEM:
+      return new GetItemCommand({
+        TableName: tableName,
+        Key: builder.key as Record<string, AttributeValue>,
+        ProjectionExpression: builder.projection ?? undefined,
+        ExpressionAttributeNames: builder.expressionAttributeNames ?? undefined,
+        ReturnConsumedCapacity: builder.returnConsumedCapacity ?? undefined,
       }) as ReturnValue<T>;
   }
 

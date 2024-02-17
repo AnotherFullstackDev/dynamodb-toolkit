@@ -29,6 +29,7 @@ export enum OperationType {
   QUERY = "query",
   UPDATE = "update",
   DELETE = "delete",
+  GET_ITEM = "get_item",
 }
 
 export type OperationDefBase<T extends OperationType> = {

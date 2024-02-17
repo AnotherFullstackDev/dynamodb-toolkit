@@ -10,7 +10,7 @@ import {
   SortKey,
 } from "../attribute/attribute";
 import { DeleteItemOperationBuilder } from "../delete-item/delete-item.types";
-import { GetItemOperationBuilder } from "../get-item";
+import { GetItemOperationBuilder } from "../get-item/get-item.types";
 import {
   InferProjectionFieldsFromSchemas,
   OperationContext,
@@ -37,6 +37,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
 import { updateItemFacadeFactory } from "../update-item/update-item.facade";
 import { deleteItemFacadeFactory } from "../delete-item/delete-item.facade";
+import { getItemOperationBuilderFactory } from "../get-item/get-item.facade";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -168,6 +169,8 @@ export type ConditionExpressionBuilder<S> = (
     >
   | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
+// @TODO: for operations that work with a single item we can restrict the key condition to achieve the following:
+// - use all the available primary keys;
 export type KeyConditionExpressionBuilder<S> = (
   expressionBuilder: OverloadableComparisonFactory<S>,
 
@@ -244,7 +247,7 @@ export const queryBuilderOperations = <
     put: () => putItemFacadeFactory(schema, context),
     query: () => queryOperationBuilder(schema, indexes, context),
     scan: () => null as any,
-    get: () => null as any,
+    get: () => getItemOperationBuilderFactory(schema, context),
     update: () => updateItemFacadeFactory(schema, context),
     delete: () => deleteItemFacadeFactory(schema, context),
   };

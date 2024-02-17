@@ -5,6 +5,7 @@ import {
 import { ConditionExpressionBuilder } from "../condition/condition.types";
 import {
   ExpressionPlaceholdersHost,
+  GenericCondition,
   InferProjectionFieldsFromSchemas,
   OperationDefBase,
   OperationType,
@@ -33,6 +34,15 @@ export type SingleTableQueryOperationBuilder<S> = {
 };
 
 export type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;
+
+export type QueryOperationBuilderStateType = {
+  keyCondition: GenericCondition | null;
+  filter: GenericCondition | null;
+  projection: string[] | null;
+  offset: number | null;
+  limit: number | null;
+  returnConsumedCapacity: ReturnConsumedCapacityValues | null;
+};
 
 export type QueryOperationDef = OperationDefBase<OperationType.QUERY> &
   ExpressionPlaceholdersHost & {

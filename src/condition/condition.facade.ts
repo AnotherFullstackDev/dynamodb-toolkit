@@ -236,3 +236,17 @@ export const runKeyConditionBuilder = (builder: KeyConditionExpressionBuilder<an
 
   return conditions;
 };
+
+export const serializeProjectionFields = (fields: string[]) => {
+  return fields
+    .map((fieldName) => getAttributeNamePlaceholder(fieldName, "proj"))
+    .reduce<{ attributes: string[]; placeholders: Record<string, string> }>(
+      (result, item) => {
+        return {
+          attributes: [...result.attributes, item.attributeNamePlaceholder],
+          placeholders: { ...result.placeholders, ...item.attributeNamePlaceholderValues },
+        };
+      },
+      { attributes: [], placeholders: {} },
+    );
+};

@@ -1,5 +1,10 @@
 import { QueryCommandOutput } from "@aws-sdk/client-dynamodb";
-import { getAttributeNamePlaceholder, runConditionBuilder, serializeConditionDef } from "../condition/condition.facade";
+import {
+  getAttributeNamePlaceholder,
+  runConditionBuilder,
+  serializeConditionDef,
+  serializeProjectionFields,
+} from "../condition/condition.facade";
 import { ConditionExpressionBuilder } from "../condition/condition.types";
 import { GenericTupleBuilderResultSchema } from "../general-test";
 import {
@@ -18,17 +23,13 @@ import {
   TransformTableSchemaIntoTupleSchemasMap,
   TupleMapBuilderResult,
 } from "../schema/schema.types";
-import { QueryOperationBuilder, QueryOperationIndexSelector, SingleTableQueryOperationBuilder } from "./query.types";
+import {
+  QueryOperationBuilder,
+  QueryOperationBuilderStateType,
+  QueryOperationIndexSelector,
+  SingleTableQueryOperationBuilder,
+} from "./query.types";
 import { transformTypeDescriptorToValue } from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
-
-type QueryOperationBuilderStateType = {
-  keyCondition: GenericCondition | null;
-  filter: GenericCondition | null;
-  projection: string[] | null;
-  offset: number | null;
-  limit: number | null;
-  returnConsumedCapacity: ReturnConsumedCapacityValues | null;
-};
 
 export const singleTableQueryOperationBuilderFactory = <S, IDX>(
   schema: TupleMap,
@@ -115,19 +116,7 @@ export const singleTableQueryOperationBuilderFactory = <S, IDX>(
 
       // @TODO: take a look at how field name placeholders are built because names clash + exaluate if it can be harmful
       //   Probably there is no need in making field names specific across values of an operation
-      const projectionAttributes = state.projection
-        ? state.projection
-            .map((fieldName) => getAttributeNamePlaceholder(fieldName, "proj"))
-            .reduce<{ attributes: string[]; placeholders: Record<string, string> }>(
-              (result, item) => {
-                return {
-                  attributes: [...result.attributes, item.attributeNamePlaceholder],
-                  placeholders: { ...result.placeholders, ...item.attributeNamePlaceholderValues },
-                };
-              },
-              { attributes: [], placeholders: {} },
-            )
-        : null;
+      const projectionAttributes = state.projection ? serializeProjectionFields(state.projection) : null;
 
       return {
         type: OperationType.QUERY,
