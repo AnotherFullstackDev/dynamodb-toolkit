@@ -16,6 +16,7 @@ import { queryBuilder } from "./condition/condition.types";
 import { schema, useSchema } from "./schema/schema.facade";
 import {
   InferTupledMap,
+  RemoveTableSchemaFieldsByType,
   TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
   TupleKeyValuePeer,
@@ -246,6 +247,7 @@ const testTable = schema().add("posts", postsEntitySchema).build();
 
 type TableBase = InferTupledMap<typeof testTable>;
 type TupleTable = TransformTableSchemaIntoTupleSchemasMap<TableBase>;
+type TupleTableWithoutKeys = RemoveTableSchemaFieldsByType<TupleTable, [PartitionKey<any>, SortKey<any>]>;
 type InterfaceTable = TransformTableSchemaIntoSchemaInterfacesMap<TableBase>;
 
 type GenericTupleTable = [...TupleKeyValuePeer<string, GenericTupleAttributeValue>[]];

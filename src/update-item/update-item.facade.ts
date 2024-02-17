@@ -81,7 +81,7 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
           throw new Error(`Descriptor not found for field ${operationDef.field}`);
         }
 
-        let statement = "=";
+        let statement = null;
 
         switch (operationDef.operation.operationName) {
           case FieldUpdateOperation.APPEND_LIST:
@@ -97,6 +97,10 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
 
           default:
             statement = `${fieldPlaceholder.attributeNamePlaceholder} = ${valuePlaceholder}`;
+        }
+
+        if (!statement) {
+          throw new Error(`Statement for operation ${operationDef.operation.operationName} was not created!`);
         }
 
         setFieldStatements.push(statement);
@@ -147,9 +151,7 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
         context,
       );
     },
-    condition: function (
-      builder: ConditionExpressionBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
-    ): UpdateIndividualItemOperationBuilder<S> {
+    condition: function (builder: ConditionExpressionBuilder<any>): UpdateIndividualItemOperationBuilder<S> {
       const condition = runConditionBuilder(builder);
 
       return updateIndividualItemOperationBuilderFactory(schema, { ...state, condition }, context);

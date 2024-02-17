@@ -246,7 +246,9 @@ export type UpdateIndividualItemOperationBuilder<S> = {
   //   fields: InferProjectionFieldsFromSchemas<TransformTableSchemaIntoTupleSchemasMap<S>>,
   // ) => UpdateIndividualItemOperationBuilder<S>;
   condition: (
-    builder: ConditionExpressionBuilder<TransformTableSchemaIntoTupleSchemasMap<S>>,
+    builder: ConditionExpressionBuilder<
+      RemoveTableSchemaFieldsByType<TransformTableSchemaIntoTupleSchemasMap<S>, [PartitionKey<any>, SortKey<any>]>
+    >,
   ) => UpdateIndividualItemOperationBuilder<S>;
   returnValues(value: "ALL_NEW" | "ALL_OLD" | "UPDATED_NEW" | "UPDATED_OLD"): UpdateIndividualItemOperationBuilder<S>;
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => UpdateIndividualItemOperationBuilder<S>;

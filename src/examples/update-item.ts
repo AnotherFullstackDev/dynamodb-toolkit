@@ -8,7 +8,6 @@ import { qb } from "./example-context";
     .item("users")
     // @TODO: add check for the primary key - if not all the fields of the primary key are set dynamodb will throw an error
     .key((eb, { and }) => and([eb("name", "=", "John"), eb("age", "=", 31)]))
-    // TODO: remove the ability to use primary keys
     .condition((eb) => eb("building.size", "<=", 100))
     .set((set) => [set("building.street", "Some Unknown Str. V3")])
     .remove(["building.size"])
