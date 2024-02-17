@@ -7,6 +7,7 @@ import {
   runKeyConditionBuilder,
   serializeConditionDef,
   serializeKeyConditionDef,
+  validateKeyCondition,
 } from "../condition/condition.facade";
 import { ConditionExpressionBuilder, KeyConditionExpressionBuilder } from "../condition/condition.types";
 import { GenericTupleBuilderResultSchema, GenericTupleTableSchema } from "../general-test";
@@ -180,7 +181,7 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
         throw new Error("Key condition is not defined");
       }
 
-      const serializedKeyCondition = serializeKeyConditionDef(state.key, schema);
+      const serializedKeyCondition = validateKeyCondition(serializeKeyConditionDef(state.key, schema), schema);
       const serializedCondition = state.condition
         ? serializeConditionDef(state.condition, { conditionIndex: 0 }, schema)
         : null;

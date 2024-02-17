@@ -11,6 +11,7 @@ import {
 } from "./condition.types";
 import { getDescriptorFactoryForValueByPath } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
 import { TypeDescriptor } from "../schema/type-descriptor-converters/schema-type-descriptors.types";
+import { isPartitionKeyAttribute, isSortKeyAttribute } from "../attribute/attribute";
 
 export const comparisonOperationFactory: ComparisonOperatorFactory<string, Record<string, unknown>, string> = (
   field,
@@ -153,7 +154,7 @@ const serializeKeyConditionComparison = (
   value: OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>,
   schema: TupleMap,
 ) => {
-  console.log(value);
+  // console.log(value);
   const valueDescriptor = getDescriptorFactoryForValueByPath(schema, value.operator.field);
 
   if (!valueDescriptor) {
@@ -194,6 +195,28 @@ export const serializeKeyConditionDef = (
     value as OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>,
     schema,
   );
+};
+
+export const validateKeyCondition = (
+  serializedCondition: Record<string, TypeDescriptor<string, unknown>>,
+  schema: TupleMap,
+) => {
+  const partitionKey = schema.find((item) => isPartitionKeyAttribute(item.value()));
+  const sortKey = schema.find((item) => isSortKeyAttribute(item.value()));
+
+  if (partitionKey && !serializedCondition[partitionKey.key()]) {
+    throw new Error(
+      "Schema defines a partition key therefore a condition for partition key must be provided when targetting an item by its primary key",
+    );
+  }
+
+  if (sortKey && !serializedCondition[sortKey.key()]) {
+    throw new Error(
+      "Schema defines a sort key therefore a condition for sort key must be provided when targeting an item by its primary key",
+    );
+  }
+
+  return serializedCondition;
 };
 
 export const runConditionBuilder = (builder: ConditionExpressionBuilder<any>) => {
