@@ -6,6 +6,7 @@ import {
   GetItemCommandOutput,
   PutItemCommand,
   QueryCommand,
+  ScanCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
 import { PutItemOperationDef } from "../put-item/put-item.types";
@@ -14,13 +15,15 @@ import { QueryOperationDef } from "../query/query.types";
 import { UpdateItemOperationDef } from "../update-item/update-item.types";
 import { DeleteItemOperationDef } from "../delete-item/delete-item.types";
 import { GetItemOperationDef } from "../get-item/get-item.types";
+import { ScanOperationDef } from "../scan/scan.types";
 
 export type SupportedOperationDefsByRunner =
   | PutItemOperationDef
   | QueryOperationDef
   | UpdateItemOperationDef
   | DeleteItemOperationDef
-  | GetItemOperationDef;
+  | GetItemOperationDef
+  | ScanOperationDef;
 
 // type ConvertBuilderResultToCommandParams = PutItemOperationDef;
 
@@ -34,6 +37,8 @@ export type ReturnValue<T extends OperationDefBase<OperationType>> = T["type"] e
   ? DeleteItemCommand
   : T["type"] extends OperationType.GET_ITEM
   ? GetItemCommand
+  : T["type"] extends OperationType.SCAN
+  ? ScanCommand
   : never;
 
 // TODO: write a simple runner that will work with operation builders and submit a request to dynamodb
@@ -98,6 +103,17 @@ export const convertBuilderResultToCommandInput = <T extends SupportedOperationD
         Key: builder.key as Record<string, AttributeValue>,
         ProjectionExpression: builder.projection ?? undefined,
         ExpressionAttributeNames: builder.expressionAttributeNames ?? undefined,
+        ReturnConsumedCapacity: builder.returnConsumedCapacity ?? undefined,
+      }) as ReturnValue<T>;
+
+    case OperationType.SCAN:
+      return new ScanCommand({
+        TableName: tableName,
+        FilterExpression: builder.filter ?? undefined,
+        ExpressionAttributeNames: builder.expressionAttributeNames ?? undefined,
+        ExpressionAttributeValues: (builder.expressionAttributeValues as Record<string, AttributeValue>) ?? undefined,
+        ProjectionExpression: builder.projection ?? undefined,
+        Limit: builder.limit ?? undefined,
         ReturnConsumedCapacity: builder.returnConsumedCapacity ?? undefined,
       }) as ReturnValue<T>;
   }

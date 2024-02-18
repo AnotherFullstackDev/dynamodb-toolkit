@@ -30,7 +30,7 @@ export type SingleTableQueryOperationBuilder<S> = {
   returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => SingleTableQueryOperationBuilder<S>;
   build: () => QueryOperationDef;
   execute: () => Promise<QueryCommandOutput>;
-  executeAndReturnValue: <T = unknown>() => Promise<T>;
+  executeAndReturnValue: <T = unknown>() => Promise<T[] | null>;
 };
 
 export type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;

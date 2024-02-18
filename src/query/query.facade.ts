@@ -30,6 +30,10 @@ import {
   SingleTableQueryOperationBuilder,
 } from "./query.types";
 import { transformTypeDescriptorToValue } from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
+import {
+  createCombinedTupleMapForAllTableEntitiesFromTableMap,
+  createTupleMapFromTableSchema,
+} from "../schema/schema-tuple-map.utils";
 
 export const singleTableQueryOperationBuilderFactory = <S, IDX>(
   schema: TupleMap,
@@ -160,20 +164,8 @@ export const queryOperationBuilder = <S extends TupleMapBuilderResult<unknown, G
   TransformTableSchemaIntoTupleSchemasMap<InferTupledMap<S>>,
   { [K in keyof IDX]: TransformTableSchemaIntoTupleSchemasMap<InferTupledMap<IDX[K]>> }
 > => {
-  const tableSchema = TupleMap.fromTableSchema(extractSchemaBuilderResult(schema) as any); // TODO: fix this
-  const tableWithFieldsFromAllModels = new TupleMap("ROOT", []);
-
-  tableSchema.forEach((pear) => {
-    const modelSchema = pear.value() as TupleMap;
-
-    modelSchema.forEach((modelField) => {
-      if (tableWithFieldsFromAllModels.has(modelField.key())) {
-        throw new Error(`Field ${modelField.key()} is already defined in the table!`);
-      }
-
-      tableWithFieldsFromAllModels.set(modelField.key(), modelField.value() as any);
-    });
-  });
+  const tableSchema = createTupleMapFromTableSchema(schema);
+  const tableWithFieldsFromAllModels = createCombinedTupleMapForAllTableEntitiesFromTableMap(tableSchema);
 
   return singleTableQueryOperationBuilderFactory(
     tableWithFieldsFromAllModels,

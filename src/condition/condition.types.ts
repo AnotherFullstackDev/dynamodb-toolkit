@@ -38,6 +38,8 @@ import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
 import { updateItemFacadeFactory } from "../update-item/update-item.facade";
 import { deleteItemFacadeFactory } from "../delete-item/delete-item.facade";
 import { getItemOperationBuilderFactory } from "../get-item/get-item.facade";
+import { ScanOperationBuilder } from "../scan/scan.types";
+import { scanOperationBuilderFacadeFactory } from "../scan/scan.facade";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -194,14 +196,6 @@ export type KeyConditionExpressionBuilder<S> = (
     >
   | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
-type ScanOperationBuilder<S> = {
-  filter: (builder: ConditionExpressionBuilder<S>) => ScanOperationBuilder<S>;
-  projection: (fields: InferProjectionFieldsFromSchemas<S>) => ScanOperationBuilder<S>;
-  offset: (offset: number) => ScanOperationBuilder<S>;
-  limit: (limit: number) => ScanOperationBuilder<S>;
-  returnConsumedCapacity: (capacity: ReturnConsumedCapacityValues) => ScanOperationBuilder<S>;
-};
-
 type BuilderInitizlizer<S, IDX> = {
   withContext: (context: OperationContext) => BuilderOperations<S, IDX>;
 };
@@ -246,7 +240,7 @@ export const queryBuilderOperations = <
   return {
     put: () => putItemFacadeFactory(schema, context),
     query: () => queryOperationBuilder(schema, indexes, context),
-    scan: () => null as any,
+    scan: () => scanOperationBuilderFacadeFactory(schema, context),
     get: () => getItemOperationBuilderFactory(schema, context),
     update: () => updateItemFacadeFactory(schema, context),
     delete: () => deleteItemFacadeFactory(schema, context),
