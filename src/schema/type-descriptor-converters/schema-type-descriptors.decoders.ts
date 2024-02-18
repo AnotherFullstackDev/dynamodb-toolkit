@@ -1,5 +1,6 @@
 import { Attribute, AttributeType } from "../../attribute/attribute";
 import { TupleMap } from "../schema-tuple-map.facade";
+import { isTupleMap } from "../schema-tuple-map.utils";
 import {
   AttributeTypeDescriptorKey,
   ListTypeDescriptor,
@@ -42,15 +43,15 @@ export const transformTypeDescriptorToValue = (
   schema: TupleMap | Attribute<AttributeType, unknown>,
   value: Record<string, unknown> | unknown[] | unknown,
 ): unknown => {
-  if (schema instanceof TupleMap && schema.getType() === "LIST") {
+  if (isTupleMap(schema) && schema.getType() === "LIST") {
+    if (!value) {
+      return [];
+    }
+
     const listItemSchema = schema.getByPath("[0]");
 
     if (!listItemSchema) {
       throw new Error("List item schema is not found");
-    }
-
-    if (!value) {
-      return [];
     }
 
     const listDecoder = getDecoderFactoryForValue(value as ListTypeDescriptor);
@@ -60,20 +61,25 @@ export const transformTypeDescriptorToValue = (
     );
   }
 
-  if (schema instanceof TupleMap && (schema.getType() === "MAP" || schema.getType() === "ROOT")) {
+  if (isTupleMap(schema) && (schema.getType() === "MAP" || schema.getType() === "ROOT")) {
+    if (!value) {
+      return {};
+    }
+
     const result: Record<string, unknown> = {};
     const valueDecoder = getDecoderFactoryForValue(value as MapTypeDescriptor);
     const unwrappedValue = valueDecoder(value as MapTypeDescriptor) as Record<string, unknown>;
 
-    for (const [key, value] of Object.entries(unwrappedValue)) {
-      const fieldSchema = schema.getByPath(key);
+    schema.forEach((keyValue) => {
+      const value = unwrappedValue[keyValue.key()];
+      const valueSchema = keyValue.value() as TupleMap | Attribute<AttributeType, unknown>;
 
-      if (!fieldSchema) {
-        throw new Error("Field schema is not found");
+      if (!valueSchema) {
+        throw new Error(`Value schema for field ${keyValue.key()} is not found`);
       }
 
-      result[key] = transformTypeDescriptorToValue(fieldSchema.value(), value);
-    }
+      result[keyValue.key()] = transformTypeDescriptorToValue(valueSchema, value);
+    });
 
     return result;
   }
