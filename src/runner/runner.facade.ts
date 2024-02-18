@@ -63,6 +63,7 @@ export const convertBuilderResultToCommandInput = <T extends SupportedOperationD
     case OperationType.QUERY:
       return new QueryCommand({
         TableName: tableName,
+        IndexName: builder.indexName ?? undefined,
         KeyConditionExpression: builder.keyCondition,
         ExpressionAttributeNames: builder.expressionAttributeNames ?? undefined,
         ExpressionAttributeValues: (builder.expressionAttributeValues as Record<string, AttributeValue>) ?? undefined,

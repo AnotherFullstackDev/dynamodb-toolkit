@@ -9,6 +9,7 @@ import { run } from "../runner/runner.facade";
 const usersSchema = schema()
   .add("name", partitionKey(string()))
   .add("age", sortKey(number()))
+  .add("role", string())
   .add(
     "building",
     map(
@@ -24,11 +25,17 @@ const usersSchema = schema()
   )
   .build();
 
+const indexUserSchema = schema().add("name", partitionKey(string())).add("role", sortKey(string())).build();
+
+const gsi1 = schema().add("users", indexUserSchema).build();
+
 export const tableSchema = schema().add("users", usersSchema).build();
 
 export const tableMap = TupleMap.fromTableSchema(extractSchemaBuilderResult(tableSchema as any));
 
-export const qb = queryBuilder(tableSchema).withContext({
+export const qb = queryBuilder(tableSchema, {
+  "name-role-index": gsi1,
+}).withContext({
   client: new DynamoDBClient({}),
   tableName: "qb-test-v1",
   runner: run,

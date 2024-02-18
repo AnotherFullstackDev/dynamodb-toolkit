@@ -1,21 +1,18 @@
 import { QueryCommandOutput } from "@aws-sdk/client-dynamodb";
-import {
-  getAttributeNamePlaceholder,
-  runConditionBuilder,
-  serializeConditionDef,
-  serializeProjectionFields,
-} from "../condition/condition.facade";
+import { runConditionBuilder, serializeConditionDef, serializeProjectionFields } from "../condition/condition.facade";
 import { ConditionExpressionBuilder } from "../condition/condition.types";
 import { GenericTupleBuilderResultSchema } from "../general-test";
 import {
-  GenericCondition,
   InferProjectionFieldsFromSchemas,
   OperationContext,
   OperationType,
   ReturnConsumedCapacityValues,
 } from "../operations-common/operations-common.types";
 import { TupleMap } from "../schema/schema-tuple-map.facade";
-import { extractSchemaBuilderResult } from "../schema/schema.builder";
+import {
+  createCombinedTupleMapForAllTableEntitiesFromTableMap,
+  createTupleMapFromTableSchema,
+} from "../schema/schema-tuple-map.utils";
 import {
   InferTupledMap,
   PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList,
@@ -23,96 +20,92 @@ import {
   TransformTableSchemaIntoTupleSchemasMap,
   TupleMapBuilderResult,
 } from "../schema/schema.types";
+import { transformTypeDescriptorToValue } from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
 import {
   QueryOperationBuilder,
   QueryOperationBuilderStateType,
   QueryOperationIndexSelector,
   SingleTableQueryOperationBuilder,
 } from "./query.types";
-import { transformTypeDescriptorToValue } from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
-import {
-  createCombinedTupleMapForAllTableEntitiesFromTableMap,
-  createTupleMapFromTableSchema,
-} from "../schema/schema-tuple-map.utils";
+import { sanitizePlaceholders } from "../operations-common/operations-common.utils";
 
-export const singleTableQueryOperationBuilderFactory = <S, IDX>(
+export const singleTableQueryOperationBuilderFactory = <
+  S,
+  IDX extends Record<string, TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>>,
+>(
   schema: TupleMap,
-  state: QueryOperationBuilderStateType,
+  indexes: IDX,
   context: OperationContext,
+  state: QueryOperationBuilderStateType,
 ): SingleTableQueryOperationBuilder<S> & QueryOperationIndexSelector<IDX> => {
   const result: SingleTableQueryOperationBuilder<S> & QueryOperationIndexSelector<IDX> = {
     index: function <N extends keyof IDX>(name: N): SingleTableQueryOperationBuilder<IDX[N]> {
-      throw new Error("Function not implemented.");
+      const indexSchema = indexes[name];
+
+      if (!indexSchema) {
+        throw new Error(`Index ${String(name)} does not exist in the schema`);
+      }
+
+      const indexTableMap = createTupleMapFromTableSchema(indexSchema);
+      const indexTableWithFieldsFromAllModels = createCombinedTupleMapForAllTableEntitiesFromTableMap(indexTableMap);
+
+      return singleTableQueryOperationBuilderFactory(indexTableWithFieldsFromAllModels, {}, context, {
+        indexName: String(name),
+        keyCondition: null,
+        filter: null,
+        projection: null,
+        offset: null,
+        limit: null,
+        returnConsumedCapacity: null,
+      }) as SingleTableQueryOperationBuilder<IDX[N]>;
     },
     keyCondition: function (
       builder: ConditionExpressionBuilder<PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
     ): SingleTableQueryOperationBuilder<S> {
       const condition = runConditionBuilder(builder);
 
-      return singleTableQueryOperationBuilderFactory(
-        schema,
-        {
-          ...state,
-          keyCondition: condition,
-        },
-        context,
-      );
+      return singleTableQueryOperationBuilderFactory(schema, indexes, context, {
+        ...state,
+        keyCondition: condition,
+      });
     },
     filter: function (
       builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
     ): SingleTableQueryOperationBuilder<S> {
       const condition = runConditionBuilder(builder);
 
-      return singleTableQueryOperationBuilderFactory(
-        schema,
-        {
-          ...state,
-          filter: condition,
-        },
-        context,
-      );
+      return singleTableQueryOperationBuilderFactory(schema, indexes, context, {
+        ...state,
+        filter: condition,
+      });
     },
     projection: function (fields: InferProjectionFieldsFromSchemas<S>): SingleTableQueryOperationBuilder<S> {
-      return singleTableQueryOperationBuilderFactory(
-        schema,
-        {
-          ...state,
-          projection: fields as string[],
-        },
-        context,
-      );
+      return singleTableQueryOperationBuilderFactory(schema, indexes, context, {
+        ...state,
+        projection: fields as string[],
+      });
     },
     offset: function (offset: number): SingleTableQueryOperationBuilder<S> {
       throw new Error("Function not implemented.");
     },
     limit: function (limit: number): SingleTableQueryOperationBuilder<S> {
-      return singleTableQueryOperationBuilderFactory(
-        schema,
-        {
-          ...state,
-          limit,
-        },
-        context,
-      );
+      return singleTableQueryOperationBuilderFactory(schema, indexes, context, {
+        ...state,
+        limit,
+      });
     },
     returnConsumedCapacity: function (capacity: ReturnConsumedCapacityValues): SingleTableQueryOperationBuilder<S> {
-      return singleTableQueryOperationBuilderFactory(
-        schema,
-        {
-          ...state,
-          returnConsumedCapacity: capacity,
-        },
-        context,
-      );
+      return singleTableQueryOperationBuilderFactory(schema, indexes, context, {
+        ...state,
+        returnConsumedCapacity: capacity,
+      });
     },
     build: function () {
-      const serializedKeyCondition = state.keyCondition
-        ? serializeConditionDef(state.keyCondition, { conditionIndex: 0 }, schema)
-        : null;
-
-      if (!serializedKeyCondition?.condition) {
-        throw new Error("Key condition must be provided!");
+      if (!state.keyCondition) {
+        throw new Error("Key condition is required");
       }
+
+      const serializedKeyCondition = serializeConditionDef(state.keyCondition, { conditionIndex: 0 }, schema);
 
       const serializedFilterCondition = state.filter
         ? serializeConditionDef(state.filter, { conditionIndex: 0 }, schema)
@@ -124,17 +117,20 @@ export const singleTableQueryOperationBuilderFactory = <S, IDX>(
 
       return {
         type: OperationType.QUERY,
+        indexName: state.indexName,
         keyCondition: serializedKeyCondition.condition,
         filter: serializedFilterCondition?.condition ?? null,
-        expressionAttributeNames: {
-          ...serializedKeyCondition.attributeNamePlaceholders,
-          ...serializedFilterCondition?.attributeNamePlaceholders,
-          ...projectionAttributes?.placeholders,
-        },
-        expressionAttributeValues: {
-          ...serializedKeyCondition.valuePlaceholders,
-          ...serializedFilterCondition?.valuePlaceholders,
-        },
+        ...sanitizePlaceholders({
+          expressionAttributeNames: {
+            ...serializedKeyCondition.attributeNamePlaceholders,
+            ...serializedFilterCondition?.attributeNamePlaceholders,
+            ...projectionAttributes?.placeholders,
+          },
+          expressionAttributeValues: {
+            ...serializedKeyCondition.valuePlaceholders,
+            ...serializedFilterCondition?.valuePlaceholders,
+          },
+        }),
         projection: projectionAttributes?.attributes.join(", ") ?? null,
         offset: state.offset,
         limit: state.limit,
@@ -156,7 +152,10 @@ export const singleTableQueryOperationBuilderFactory = <S, IDX>(
   return result;
 };
 
-export const queryOperationBuilder = <S extends TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>, IDX>(
+export const queryOperationBuilder = <
+  S extends TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>,
+  IDX extends Record<string, TupleMapBuilderResult<unknown, GenericTupleBuilderResultSchema>>,
+>(
   schema: S,
   indexes: IDX = {} as IDX,
   context: OperationContext,
@@ -167,18 +166,15 @@ export const queryOperationBuilder = <S extends TupleMapBuilderResult<unknown, G
   const tableSchema = createTupleMapFromTableSchema(schema);
   const tableWithFieldsFromAllModels = createCombinedTupleMapForAllTableEntitiesFromTableMap(tableSchema);
 
-  return singleTableQueryOperationBuilderFactory(
-    tableWithFieldsFromAllModels,
-    {
-      keyCondition: null,
-      filter: null,
-      projection: null,
-      offset: null,
-      limit: null,
-      returnConsumedCapacity: null,
-    },
-    context,
-  ) satisfies QueryOperationBuilder<
+  return singleTableQueryOperationBuilderFactory(tableWithFieldsFromAllModels, indexes, context, {
+    indexName: null,
+    keyCondition: null,
+    filter: null,
+    projection: null,
+    offset: null,
+    limit: null,
+    returnConsumedCapacity: null,
+  }) as QueryOperationBuilder<
     TransformTableSchemaIntoTupleSchemasMap<InferTupledMap<S>>,
     { [K in keyof IDX]: TransformTableSchemaIntoTupleSchemasMap<InferTupledMap<IDX[K]>> }
   >;

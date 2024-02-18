@@ -36,6 +36,7 @@ export type SingleTableQueryOperationBuilder<S> = {
 export type QueryOperationBuilder<S, IDX> = QueryOperationIndexSelector<IDX> & SingleTableQueryOperationBuilder<S>;
 
 export type QueryOperationBuilderStateType = {
+  indexName: string | null;
   keyCondition: GenericCondition | null;
   filter: GenericCondition | null;
   projection: string[] | null;
@@ -46,6 +47,7 @@ export type QueryOperationBuilderStateType = {
 
 export type QueryOperationDef = OperationDefBase<OperationType.QUERY> &
   ExpressionPlaceholdersHost & {
+    indexName: string | null;
     keyCondition: string;
     filter: string | null;
     projection: string | null;
