@@ -13,22 +13,18 @@ import {
   sortKey,
   string,
 } from "../attribute/attribute";
+import { createModel, schema, useSchema } from "./schema.facade";
 import {
   ExtractTupleMapBuilderResultFromSingleValue,
   ForEachMapValuePrependKey,
   InferTupledMap,
   NotTypedTupleMapBuilderCompleteResult,
+  TransformTableSchemaIntoSchemaInterfacesMap,
+  TransformTableSchemaIntoTupleSchemasMap,
+  TupleKeyValuePeer,
   TupleMapBuilder,
   TupleMapBuilderResult,
-  createModel,
-  schema,
-  useSchema,
-  TupleKeyValuePeer,
-  TransformTypeToSchemaBuilderInterface,
-  TransformTableSchemaIntoSchemaInterfacesMap,
-  InferTupleMapInterface,
-  TransformTableSchemaIntoTupleSchemasMap,
-} from "./schema";
+} from "./schema.types";
 
 type ET = ExtractTupleMapBuilderResultFromSingleValue<
   MapAttribute<TupleMapBuilderResult<unknown, [["field", RegularAttribute<number>]]>>

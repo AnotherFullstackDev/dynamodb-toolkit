@@ -1,6 +1,5 @@
 import {
   Attribute,
-  AttributeType,
   PartitionKey,
   SortKey,
   composite,
@@ -199,9 +198,9 @@ queryBuilder(schemaV2)
 // const type: `users#${string}` = "users#some-random-user-id";
 
 const userEntitySchema = schema()
-  .add("id", partitionKey(composite((t) => t.literal("users#").string())))
-  .add("sk", sortKey(number()))
-  .add("name", string())
+  // .add("id", partitionKey(composite((t) => t.literal("users#").string())))
+  .add("sk", sortKey(number().nullable()))
+  .add("name", string().nullable())
   .add("age", number())
   .add("dob", date())
   .add(
@@ -232,12 +231,18 @@ const userEntitySchema = schema()
 const postsEntitySchema = schema<{
   title: string;
   publicationDate: number;
-  content: string;
+  updatedAt?: Date | null;
+  content: string | null;
+  subContent?: string;
+  subTitle: number | undefined;
   authors: { name: string }[];
 }>()
   .add("title", partitionKey(string()))
   .add("publicationDate", sortKey(number())) // TODO: date type should be allowed as a primary key because anderthe hood it uses string
-  .add("content", string())
+  .add("updatedAt", date().optional().nullable())
+  .add("content", string().nullable())
+  .add("subContent", string().optional())
+  .add("subTitle", number().optional())
   .add("authors", list(map(schema().add("name", string()).build())))
   .build();
 
@@ -245,7 +250,8 @@ const tableSchema = schema().add("users", userEntitySchema).add("posts", postsEn
 
 const testTable = schema().add("posts", postsEntitySchema).build();
 
-type TableBase = InferTupledMap<typeof testTable>;
+// type TableBase = InferTupledMap<typeof testTable>;
+type TableBase = InferTupledMap<typeof tableSchema>;
 type TupleTable = TransformTableSchemaIntoTupleSchemasMap<TableBase>;
 type TupleTableWithoutKeys = RemoveTableSchemaFieldsByType<TupleTable, [PartitionKey<any>, SortKey<any>]>;
 type InterfaceTable = TransformTableSchemaIntoSchemaInterfacesMap<TableBase>;
@@ -253,23 +259,24 @@ type InterfaceTable = TransformTableSchemaIntoSchemaInterfacesMap<TableBase>;
 type GenericTupleTable = [...TupleKeyValuePeer<string, GenericTupleAttributeValue>[]];
 
 const tt: TupleTable = [
-  [
-    "posts",
-    [
-      ["title", partitionKey(string())],
-      ["publicationDate", sortKey(number())],
-      ["content", string()],
-      [
-        "authors",
-        {
-          dataType: { dataType: [["name", string()]], attributeType: AttributeType.MAP },
-          attributeType: AttributeType.LIST,
-        },
-      ],
-      ["authors.[0]", { dataType: [["name", string()]], attributeType: AttributeType.MAP }],
-      ["authors.[0].name", string()],
-    ],
-  ],
+  // [
+  //   "posts",
+  //   [
+  //     ["title", partitionKey(string())],
+  //     ["publicationDate", sortKey(number())],
+  //     ["content", string()],
+  //     [
+  //       "authors",
+  //       {
+  //         dataType: { dataType: [["name", string()]], attributeType: AttributeType.MAP },
+  //         attributeType: AttributeType.LIST,
+  //       },
+  //     ],
+  //     ["authors.[0]", { dataType: [["name", string()]], attributeType: AttributeType.MAP }],
+  //     ["authors.[0].name", string()],
+  //   ],
+  // ],
+  ["users", [["sk", 10]]],
 ];
 const it: InterfaceTable = [
   ["posts", { title: "string", publicationDate: 10, content: "string", authors: [{ name: "string" }] }],

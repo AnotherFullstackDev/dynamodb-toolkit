@@ -11,7 +11,7 @@ import {
 } from "./condition.types";
 import { getDescriptorFactoryForValueByPath } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
 import { TypeDescriptor } from "../schema/type-descriptor-converters/schema-type-descriptors.types";
-import { isPartitionKeyAttribute, isSortKeyAttribute } from "../attribute/attribute";
+import { isPartitionKeyAttribute, isSortKeyAttribute } from "../attribute/attribute.matchers";
 
 export const comparisonOperationFactory: ComparisonOperatorFactory<string, Record<string, unknown>, string> = (
   field,

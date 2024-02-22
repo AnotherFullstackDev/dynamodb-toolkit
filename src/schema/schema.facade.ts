@@ -1,7 +1,4 @@
-// export const schemaType = <V extends TupleMapBuilder<any, any> | TypedTupleMapBuilderCompletedResult>(
-
-import { map, number, string } from "../attribute/attribute";
-import { extractSchemaBuilderFieldValue, schemaBuilderFactory } from "./schema.builder";
+import { schemaBuilderFactory } from "./schema.builder";
 import {
   ForEachMapValuePrependKey,
   InferTupledMap,
@@ -12,10 +9,11 @@ import {
   TupleMapBuilderUnknownInterface,
 } from "./schema.types";
 
-//** @deprecated */
+/** @deprecated */
 export const useSchema = <V extends TupleMapBuilderResult>(value: V): ForEachMapValuePrependKey<InferTupledMap<V>> =>
   value as any;
 
+/** @deprecated */
 export const createModel = <N extends string, M extends TupleMapBuilderResult>(
   name: N,
   model: M,

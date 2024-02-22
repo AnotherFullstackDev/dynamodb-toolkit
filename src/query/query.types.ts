@@ -23,6 +23,7 @@ export type SingleTableQueryOperationBuilder<S> = {
   ) => SingleTableQueryOperationBuilder<S>;
   filter: (
     builder: ConditionExpressionBuilder<PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList<S>>,
+    // builder: ConditionExpressionBuilder<S>,
   ) => SingleTableQueryOperationBuilder<S>;
   projection: (fields: InferProjectionFieldsFromSchemas<S>) => SingleTableQueryOperationBuilder<S>;
   offset: (offset: number) => SingleTableQueryOperationBuilder<S>;

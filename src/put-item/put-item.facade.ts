@@ -1,12 +1,9 @@
-import { AttributeType, isAttributeOfParticularType } from "../attribute/attribute";
+import { PutItemCommandOutput } from "@aws-sdk/client-dynamodb";
+import { AttributeType } from "../attribute/attribute";
+import { isAttributeOfParticularType } from "../attribute/attribute.matchers";
 import { runConditionBuilder, serializeConditionDef } from "../condition/condition.facade";
-import {
-  ComparisonOperatorDefinition,
-  ConditionExpressionBuilder,
-  EntitySchema,
-  LogicalOperatorDefinition,
-  OperatorDefinition,
-} from "../condition/condition.types";
+import { ConditionExpressionBuilder } from "../condition/condition.types";
+import { GenericInterfaceTableSchema, GenericTupleBuilderResultSchema } from "../general-test";
 import {
   GenericCondition,
   OperationContext,
@@ -14,7 +11,7 @@ import {
   ReturnConsumedCapacityValues,
   ReturnItemCollectionMetricsValues,
 } from "../operations-common/operations-common.types";
-import { TupleKeyValue, TupleMap } from "../schema/schema-tuple-map.facade";
+import { TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {
   InferTupledMap,
@@ -22,18 +19,13 @@ import {
   TransformTableSchemaIntoTupleSchemasMap,
   TupleMapBuilderResult,
 } from "../schema/schema.types";
-import { GenericInterfaceTableSchema, GenericTupleBuilderResultSchema } from "../general-test";
+import { transformValueToTypeDescriptor } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
 import {
   PutItemOperationDef,
   PutItemReturnValues,
   PutOperationAdditionalParamsBuilder,
   PutOperationBuilder,
 } from "./put-item.types";
-import {
-  getDescriptorFactoryForValue,
-  transformValueToTypeDescriptor,
-} from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
-import { PutItemCommandOutput } from "@aws-sdk/client-dynamodb";
 
 type PutItemStateType = {
   item: Record<string, unknown>;

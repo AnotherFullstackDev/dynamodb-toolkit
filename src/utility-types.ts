@@ -1,12 +1,14 @@
 export type PreventEmptyObject<T> = keyof T extends never ? never : T;
 
-export type PickByValue<T, ValueType> = PreventEmptyObject<
-  Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? never : Key }[keyof T]>
->;
+export type PickByValue<T, ValueType> = Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? never : Key }[keyof T]>;
+// export type PickByValue<T, ValueType> = PreventEmptyObject<
+//   Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? never : Key }[keyof T]>
+// >;
 
-export type OmitByValue<T, ValueType> = PreventEmptyObject<
-  Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? Key : never }[keyof T]>
->;
+export type OmitByValue<T, ValueType> = Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? Key : never }[keyof T]>;
+// export type OmitByValue<T, ValueType> = PreventEmptyObject<
+//   Omit<T, { [Key in keyof T]: T[Key] extends ValueType ? Key : never }[keyof T]>
+// >;
 
 export type SingleOrArray<T> = T | T[];
 
@@ -31,3 +33,9 @@ export type ConcatenateArrays<T, A> = [...(T extends [...infer U] ? U : [T]), ..
 export type RemapRecord<R> = { [K in keyof R]: R[K] };
 
 export type ScalarTypes = string | number | boolean | bigint | null | undefined;
+
+export type ContainsType<T, V> = T extends V ? true : false;
+
+export type ContainsNull<V> = ContainsType<null, V>;
+
+export type ContainsUndefined<V> = ContainsType<undefined, V>;

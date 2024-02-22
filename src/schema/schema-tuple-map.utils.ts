@@ -12,7 +12,10 @@ export const createTupleMapFromTableSchema = (
 };
 
 export const createCombinedTupleMapForAllTableEntitiesFromTableMap = (schema: TupleMap): TupleMap => {
-  const tableWithFieldsFromAllModels = new TupleMap("ROOT", []);
+  const tableWithFieldsFromAllModels = new TupleMap("ROOT", [], {
+    isNullable: false,
+    isOptional: false,
+  });
 
   schema.forEach((entityHost) => {
     const entitySchema = entityHost.value();
@@ -26,7 +29,7 @@ export const createCombinedTupleMapForAllTableEntitiesFromTableMap = (schema: Tu
         // @TODO: evaluate a possibility to share keys between entities
         // The keys probably must be of the same datatype
         // Theoretically ther eshould not be any problems with sharing keys between entities because each item is a new record
-        // Thougn, in the current implementation at the application level it is problemcatic if the field has different datatypes across entities (types, descriptors, targetic a specific field, etc..)
+        // Though, in the current implementation at the application level it is problematic if the field has different datatypes across entities (types, descriptors, targetic a specific field, etc..)
         throw new Error(`Field ${modelField.key()} is already defined in some of the table entities!`);
       }
 

@@ -14,6 +14,7 @@ import {
   ReturnConsumedCapacityValues,
   ReturnItemCollectionMetricsValues,
 } from "../operations-common/operations-common.types";
+import { sanitizePlaceholders } from "../operations-common/operations-common.utils";
 import { TupleMap } from "../schema/schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import { InferTupledMap, TupleMapBuilderResult } from "../schema/schema.types";
@@ -25,7 +26,6 @@ import {
   DeleteItemOperationDef,
   DeleteItemReturnValues,
 } from "./delete-item.types";
-import { sanitizePlaceholders } from "../operations-common/operations-common.utils";
 
 export const deleteIndividualItemFacadeFactory = <S>(
   schema: TupleMap,

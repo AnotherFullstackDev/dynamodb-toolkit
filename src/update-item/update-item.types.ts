@@ -1,13 +1,15 @@
 import { ReturnConsumedCapacity, ReturnItemCollectionMetrics, UpdateItemCommandOutput } from "@aws-sdk/client-dynamodb";
 import {
+  ApplyNullability,
+  ApplyOptional,
   Attribute,
   AttributeType,
   DateAttribute,
-  InferOriginalOrAttributeDataType,
   ListAttribute,
   MapAttribute,
   PartitionKey,
   RegularAttribute,
+  ResolveOptional,
   SortKey,
 } from "../attribute/attribute";
 import { ConditionExpressionBuilder, KeyConditionExpressionBuilder } from "../condition/condition.types";
@@ -24,8 +26,8 @@ import {
   FilterTableSchemaFieldsByType,
   PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
   RemoveTableSchemaFieldsByType,
-  TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
+  TurnOptionalFieldsToPartial,
 } from "../schema/schema.types";
 import { CombineArrayElementsViaUnion } from "../utility-types";
 
@@ -70,13 +72,19 @@ type MS = TransformMapSchemaIntoRecord<[["field", number], ["field2", string]]>;
 // @TODO: seems we might recunstruct the map builder interface from the field tuples
 // Probably it might be used to simplify the typesystem in the future
 export type TransformAttributeValueIntoRecord<T> = T extends Attribute<infer A, infer V>
-  ? A extends "MAP"
-    ? TransformMapSchemaIntoRecord<V>
-    : A extends "LIST"
-    ? TransformAttributeValueIntoRecord<V>[] extends infer LT
-      ? LT | FieldUpdateOperationDef<"append_list", LT>
-      : never
-    : TransformAttributeValueIntoRecord<V>
+  ? ApplyOptional<
+      T,
+      ApplyNullability<
+        T,
+        A extends "MAP"
+          ? TransformMapSchemaIntoRecord<V>
+          : A extends "LIST"
+          ? TransformAttributeValueIntoRecord<V>[] extends infer LT
+            ? LT | FieldUpdateOperationDef<"append_list", LT>
+            : never
+          : TransformAttributeValueIntoRecord<V>
+      >
+    >
   : T;
 
 type TAV = TransformAttributeValueIntoRecord<
@@ -85,6 +93,7 @@ type TAV = TransformAttributeValueIntoRecord<
       [
         ["field", RegularAttribute<number>],
         ["field2", string],
+        ["field3", Attribute<AttributeType.REGULAR, string, true, true>],
         [
           "map",
           MapAttribute<
@@ -102,14 +111,18 @@ type TAV = TransformAttributeValueIntoRecord<
 
 export type UnpackEntityAttributesIntoValueTypes<T> = T extends [infer F, ...infer R]
   ? F extends [infer K, infer V]
-    ? [[K, TransformAttributeValueIntoRecord<V>], ...UnpackEntityAttributesIntoValueTypes<R>]
+    ? [
+        [K, ResolveOptional<TurnOptionalFieldsToPartial<TransformAttributeValueIntoRecord<V>>>],
+        ...UnpackEntityAttributesIntoValueTypes<R>,
+      ]
     : F
   : T;
 
 type UET = UnpackEntityAttributesIntoValueTypes<
   [
-    ["field", RegularAttribute<number>],
-    ["field2", string],
+    // ["field", Attribute<AttributeType.REGULAR, number, true>],
+    // ["field", RegularAttribute<string>],
+    // ["field2", string],
     [
       "map",
       MapAttribute<
@@ -160,7 +173,10 @@ export type SetOperationDefsHost = {
   operations: SetOperationDef[];
 };
 
-export type SetOperationDefFactory<K, V> = (field: K, value: TransformAttributeValueIntoRecord<V>) => SetOperationDef;
+export type SetOperationDefFactory<K, V> = (
+  field: K,
+  value: ResolveOptional<TurnOptionalFieldsToPartial<TransformAttributeValueIntoRecord<V>>>,
+) => SetOperationDef;
 
 type SetValuesSchemaOperationBuilder<S> = S extends [infer F, ...infer R]
   ? (F extends [infer K, infer V]

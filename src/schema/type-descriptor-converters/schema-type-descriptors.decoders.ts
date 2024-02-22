@@ -8,6 +8,8 @@ import {
   TypeDescriptor,
   TypeDescriptorDecoder,
 } from "./schema-type-descriptors.types";
+import { shouldBeNulled } from "./schema-type-descriptors.utils";
+import { isDateAttribute, isNumberAttribute } from "../../attribute/attribute.matchers";
 
 const decodersToTypeDescriptorsMap: Record<AttributeTypeDescriptorKey, TypeDescriptorDecoder> = {
   S: (value) => value.S,
@@ -43,6 +45,14 @@ export const transformTypeDescriptorToValue = (
   schema: TupleMap | Attribute<AttributeType, unknown>,
   value: Record<string, unknown> | unknown[] | unknown,
 ): unknown => {
+  if (value === undefined && !schema.isOptional) {
+    throw new Error(`Value "${value}" is not optional`);
+  }
+
+  if (value === null && !schema.isNullable) {
+    throw new Error(`Value "${value}" is not nullable`);
+  }
+
   if (isTupleMap(schema) && schema.getType() === "LIST") {
     if (!value) {
       return [];
@@ -78,6 +88,16 @@ export const transformTypeDescriptorToValue = (
         throw new Error(`Value schema for field ${keyValue.key()} is not found`);
       }
 
+      // TODO: handle optionality and nullability
+      // Ideally there should be an options to:
+      // - enable/disable partial conversions - when a query is decoded the full schema is likely should be enforced but when an update operation is done the schema is likely to be partial;
+      // - enforce schema data types - it might be useful when working with nulls (missed fields might be converted to null if they are set to be nullable but not optional);
+      //
+      // Currently the conversion is dene always in "partial" mode
+      if (!value) {
+        return;
+      }
+
       result[keyValue.key()] = transformTypeDescriptorToValue(valueSchema, value);
     });
 
@@ -86,5 +106,16 @@ export const transformTypeDescriptorToValue = (
 
   const decoder = getDecoderFactoryForValue(value as TypeDescriptor<string, unknown>);
 
-  return decoder(value as TypeDescriptor<string, unknown>);
+  const decodedValue = decoder(value as TypeDescriptor<string, unknown>);
+
+  if (isDateAttribute(schema)) {
+    // TODO: here might be validation for ISO string format conformance
+    return new Date(decodedValue as string);
+  }
+
+  if (isNumberAttribute(schema)) {
+    return parseInt(decodedValue as string, 10);
+  }
+
+  return decodedValue;
 };

@@ -1,23 +1,22 @@
+import { ScanCommandOutput } from "@aws-sdk/client-dynamodb";
+import { runConditionBuilder, serializeConditionDef, serializeProjectionFields } from "../condition/condition.facade";
+import { ConditionExpressionBuilder } from "../condition/condition.types";
+import { GenericTupleBuilderResultSchema } from "../general-test";
 import {
   InferProjectionFieldsFromSchemas,
   OperationContext,
   OperationType,
   ReturnConsumedCapacityValues,
 } from "../operations-common/operations-common.types";
-import { GenericTupleBuilderResultSchema } from "../general-test";
-import { InferTupledMap, TransformTableSchemaIntoTupleSchemasMap, TupleMapBuilderResult } from "../schema/schema.types";
-import { ScanOperationBuilder, ScanOperationBuilderStateType, ScanOperationDef } from "./scan.types";
-import { ConditionExpressionBuilder } from "../condition/condition.types";
-import { runConditionBuilder, serializeConditionDef, serializeProjectionFields } from "../condition/condition.facade";
+import { sanitizePlaceholders } from "../operations-common/operations-common.utils";
 import { TupleMap } from "../schema/schema-tuple-map.facade";
-import { extractSchemaBuilderResult } from "../schema/schema.builder";
 import {
   createCombinedTupleMapForAllTableEntitiesFromTableMap,
   createTupleMapFromTableSchema,
 } from "../schema/schema-tuple-map.utils";
-import { sanitizePlaceholders } from "../operations-common/operations-common.utils";
-import { ScanCommandOutput } from "@aws-sdk/client-dynamodb";
+import { InferTupledMap, TransformTableSchemaIntoTupleSchemasMap, TupleMapBuilderResult } from "../schema/schema.types";
 import { transformTypeDescriptorToValue } from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
+import { ScanOperationBuilder, ScanOperationBuilderStateType, ScanOperationDef } from "./scan.types";
 
 export const scanOperationBuilderImplementation = <S>(
   schema: TupleMap,

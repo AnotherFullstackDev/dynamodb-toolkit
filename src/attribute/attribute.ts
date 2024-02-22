@@ -1,8 +1,29 @@
 // @TODO: solve attributes nulability question;
 
 import { TupleMapBuilderResult } from "../schema/schema.types";
+import { AttributeBuilder } from "./attribute.builder";
+import { isAttributeType } from "./attribute.matchers";
 
-export type Attribute<A, T> = { attributeType: A; dataType: T };
+export type Nullable<N> = { isNullable: N };
+
+export type Optional<O> = { isOptional: O };
+
+export type OptionalValue<T> = { isOptional: true; value: T };
+
+export type InferOptionalValue<T> = T extends OptionalValue<infer V> ? V : T;
+
+export type ResolveOptional<T> = T extends OptionalValue<infer V> ? V | undefined : T;
+
+export type ApplyNullability<M, T> = M extends Nullable<true> ? T | null : T;
+
+export type CloneAttributeWithNewValue<A, V> = A extends Attribute<infer T, unknown, infer N, infer O>
+  ? Attribute<T, V, N, O>
+  : A;
+
+export type ApplyOptional<M, T> = M extends Optional<true> ? OptionalValue<T> : T;
+
+// export type Attribute<A, T, N = unknown> = { attributeType: A; dataType: T; mayBeNull?: N };
+export type Attribute<A, T, N = unknown, O = unknown> = { attributeType: A; dataType: T } & Nullable<N> & Optional<O>;
 
 export const enum AttributeType {
   PARTITION_KEY = "PARTITION_KEY",
@@ -46,43 +67,8 @@ export type BinaryAttribute<V> = Attribute<AttributeType.BINARY, V>;
 
 export type InferOriginalOrAttributeDataType<T> = T extends Attribute<unknown, infer U> ? U : T;
 
-export const isAttributeType = <T>(value: any): value is Attribute<unknown, T> =>
-  value && typeof value === "object" && "attributeType" in value;
-
-export const isAttributeOfParticularType = <T, A extends AttributeType>(
-  value: any,
-  type: A,
-): value is Attribute<A, T> => isAttributeType(value) && value.attributeType === type;
-
-export const getDataType = <T>(value: T | Attribute<unknown, T>): T =>
-  isAttributeType(value) ? value.dataType : value;
-
-export const isStringAttribute = (value: any): value is Attribute<AttributeType.REGULAR, string> =>
-  isAttributeOfParticularType(value, AttributeType.REGULAR) && Object.is(value.dataType, String);
-
-export const isNumberAttribute = (value: any): value is Attribute<AttributeType.REGULAR, number> =>
-  isAttributeOfParticularType(value, AttributeType.REGULAR) && Object.is(value.dataType, Number);
-
-export const isBinaryAttribute = (value: any): value is Attribute<AttributeType.BINARY, ArrayBuffer> =>
-  isAttributeOfParticularType(value, AttributeType.BINARY) && Object.is(value.dataType, ArrayBuffer);
-
-export const isBooleanAttribute = (value: any): value is Attribute<AttributeType.REGULAR, boolean> =>
-  isAttributeOfParticularType(value, AttributeType.REGULAR) && Object.is(value.dataType, Boolean);
-
-export const isDateAttribute = (value: any): value is Attribute<AttributeType.DATE, Date> =>
-  isAttributeOfParticularType(value, AttributeType.DATE);
-
-export const isListAttribute = <T>(value: any): value is Attribute<AttributeType.LIST, T> =>
-  isAttributeOfParticularType(value, AttributeType.LIST);
-
-export const isMapAttribute = <T>(value: any): value is Attribute<AttributeType.MAP, T> =>
-  isAttributeOfParticularType(value, AttributeType.MAP);
-
-export const isPartitionKeyAttribute = <T>(value: any): value is Attribute<AttributeType.PARTITION_KEY, T> =>
-  isAttributeOfParticularType(value, AttributeType.PARTITION_KEY);
-
-export const isSortKeyAttribute = <T>(value: any): value is Attribute<AttributeType.SORT_KEY, T> =>
-  isAttributeOfParticularType(value, AttributeType.SORT_KEY);
+export const getDataType = <T>(value: T | Attribute<AttributeType, T>): T =>
+  isAttributeType(value) ? value.dataType as T : value as T;
 
 export type CompositeValue<T> = T extends [infer FT, ...infer R]
   ? `${FT extends string | number | boolean | bigint | null | undefined ? FT : FT & string}${CompositeValue<R>}`
@@ -107,61 +93,35 @@ export const composite = <V extends (fn: CompositeTypeBuilder) => CompositeTypeB
 
 // @TODO: type safety of the builder should be improved by adding a sepcific wrapped for data types to prevent passing literal values
 
-export const string = <V extends string>(): RegularAttribute<V> => ({
-  attributeType: AttributeType.REGULAR,
-  dataType: String as unknown as V,
-});
+// export const string = <V extends string>(): RegularAttribute<V> =>
+export const string = <V extends string>() =>
+  new AttributeBuilder(AttributeType.REGULAR, String as unknown as V, false, false);
 
-export const number = <V extends number>(): RegularAttribute<V> => ({
-  attributeType: AttributeType.REGULAR,
-  dataType: Number as unknown as V,
-});
+export const number = <V extends number>() =>
+  new AttributeBuilder(AttributeType.REGULAR, Number as unknown as V, false, false);
 
-export const bool = <V extends boolean>(): RegularAttribute<V> => ({
-  attributeType: AttributeType.REGULAR,
-  dataType: Boolean as unknown as V,
-});
+export const bool = <V extends boolean>() =>
+  new AttributeBuilder(AttributeType.REGULAR, Boolean as unknown as V, false, false);
 
-export const date = <V extends Date>(): DateAttribute<V> => ({
-  attributeType: AttributeType.DATE,
-  dataType: Date as unknown as V,
-});
+export const date = <V extends Date>() => new AttributeBuilder(AttributeType.DATE, Date as unknown as V, false, false);
 
 // @TODO: binary data type requires additional work
-export const binary = <V extends ArrayBufferLike>(): BinaryAttribute<V> => ({
-  attributeType: AttributeType.BINARY,
-  dataType: ArrayBuffer as unknown as V,
-});
+export const binary = <V extends ArrayBufferLike>() =>
+  new AttributeBuilder(AttributeType.BINARY, ArrayBuffer as unknown as V, false, false);
 
 export const partitionKey = <V extends IndexAttributeValueTypes | Attribute<AttributeType, IndexAttributeValueTypes>>(
-  // value: V | Attribute<unknown, V>,
   value: V,
-): PartitionKey<V> => ({
-  attributeType: AttributeType.PARTITION_KEY,
-  // dataType: getDataType(value),
-  dataType: value,
-});
+) => new AttributeBuilder(AttributeType.PARTITION_KEY, value, false, false);
 
 export const sortKey = <V extends IndexAttributeValueTypes | Attribute<AttributeType, IndexAttributeValueTypes>>(
-  // value: V | Attribute<unknown, V>,
   value: V,
-): SortKey<V> => ({
-  attributeType: AttributeType.SORT_KEY,
-  // dataType: getDataType(value),
-  dataType: value,
-});
+) => new AttributeBuilder(AttributeType.SORT_KEY, value, false, false);
 
-export const list = <V extends ListAttributeValues>(value: V): ListAttribute<V> => ({
-  attributeType: AttributeType.LIST,
-  dataType: value,
-});
+export const list = <V extends ListAttributeValues>(value: V) =>
+  new AttributeBuilder(AttributeType.LIST, value, false, false);
 
-export const map = <V extends TupleMapBuilderResult>(value: V): MapAttribute<V> => ({
-  attributeType: AttributeType.MAP,
-  dataType: value,
-});
+export const map = <V extends TupleMapBuilderResult>(value: V) =>
+  new AttributeBuilder(AttributeType.MAP, value, false, false);
 
-export const set = <V extends SetAttributeValueTypes>(value: V): SetAttribute<V> => ({
-  attributeType: AttributeType.SET,
-  dataType: value,
-});
+export const set = <V extends SetAttributeValueTypes>(value: V) =>
+  new AttributeBuilder(AttributeType.SET, value, false, false);

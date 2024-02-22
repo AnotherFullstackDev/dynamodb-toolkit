@@ -3,19 +3,18 @@ import {
   DeleteItemCommand,
   DynamoDBClient,
   GetItemCommand,
-  GetItemCommandOutput,
   PutItemCommand,
   QueryCommand,
   ScanCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { PutItemOperationDef } from "../put-item/put-item.types";
-import { OperationDefBase, OperationType } from "../operations-common/operations-common.types";
-import { QueryOperationDef } from "../query/query.types";
-import { UpdateItemOperationDef } from "../update-item/update-item.types";
 import { DeleteItemOperationDef } from "../delete-item/delete-item.types";
 import { GetItemOperationDef } from "../get-item/get-item.types";
+import { OperationDefBase, OperationType } from "../operations-common/operations-common.types";
+import { PutItemOperationDef } from "../put-item/put-item.types";
+import { QueryOperationDef } from "../query/query.types";
 import { ScanOperationDef } from "../scan/scan.types";
+import { UpdateItemOperationDef } from "../update-item/update-item.types";
 
 export type SupportedOperationDefsByRunner =
   | PutItemOperationDef

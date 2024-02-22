@@ -1,5 +1,6 @@
-import { TupleKeyValuePeer, TupleMapBuilderResult } from "./schema.types";
-import { Attribute, AttributeType, isAttributeOfParticularType } from "../attribute/attribute";
+import { Attribute, AttributeType, Nullable, Optional } from "../attribute/attribute";
+import { isAttributeOfParticularType } from "../attribute/attribute.matchers";
+import { TupleKeyValuePeer } from "./schema.types";
 
 export class TupleKeyValue<K extends string, V> {
   constructor(private tuple: TupleKeyValuePeer<K, V>) {}
@@ -19,12 +20,31 @@ export class TupleKeyValue<K extends string, V> {
 
 type TupleMapType = "ROOT" | "MAP" | "LIST";
 
-export class TupleMap<K extends string = string> {
+type TupleMapExternalInterfaces = Nullable<boolean> & Optional<boolean>;
+
+export class TupleMap<K extends string = string> implements TupleMapExternalInterfaces {
   private type: TupleMapType;
   private value: TupleKeyValue<K, Attribute<AttributeType, unknown> | TupleMap<string>>[];
+  private modifiers: Optional<unknown> & Nullable<unknown>;
 
-  constructor(type: TupleMapType, value: TupleKeyValuePeer<K, Attribute<AttributeType, unknown>>[]) {
+  get isNullable(): boolean {
+    return Boolean(this.modifiers.isNullable);
+  }
+
+  get isOptional(): boolean {
+    return Boolean(this.modifiers.isOptional);
+  }
+
+  constructor(
+    type: TupleMapType,
+    value: TupleKeyValuePeer<K, Attribute<AttributeType, unknown>>[],
+    modifiers: Optional<unknown> & Nullable<unknown>,
+  ) {
     this.type = type;
+    this.modifiers = {
+      isNullable: modifiers.isNullable,
+      isOptional: modifiers.isOptional,
+    };
     this.value = value.map((tuple) => {
       const keyValue = new TupleKeyValue(tuple);
       const value = keyValue.value();
@@ -32,14 +52,14 @@ export class TupleMap<K extends string = string> {
       if (isAttributeOfParticularType(value, AttributeType.MAP)) {
         return new TupleKeyValue([
           keyValue.key(),
-          new TupleMap("MAP", value.dataType as TupleKeyValuePeer<string, Attribute<AttributeType, unknown>>[]),
+          new TupleMap("MAP", value.dataType as TupleKeyValuePeer<string, Attribute<AttributeType, unknown>>[], value),
         ]);
       }
 
       if (isAttributeOfParticularType(value, AttributeType.LIST)) {
         return new TupleKeyValue([
           keyValue.key(),
-          new TupleMap("LIST", [["element", value.dataType as Attribute<AttributeType, unknown>]]),
+          new TupleMap("LIST", [["element", value.dataType as Attribute<AttributeType, unknown>]], value),
         ]);
       }
 
@@ -50,10 +70,13 @@ export class TupleMap<K extends string = string> {
   static fromTableSchema<T>(
     tablSchema: TupleKeyValuePeer<string, TupleKeyValuePeer<string, Attribute<AttributeType, unknown>>[]>[],
   ) {
-    const tableMap = new TupleMap("ROOT", []);
+    const tableMap = new TupleMap("ROOT", [], {
+      isOptional: false,
+      isNullable: false,
+    });
 
     for (const [entityName, entitySchema] of tablSchema) {
-      tableMap.set(entityName, new TupleMap("MAP", entitySchema));
+      tableMap.set(entityName, new TupleMap("MAP", entitySchema, { isOptional: false, isNullable: false }));
     }
 
     return tableMap;

@@ -10,7 +10,7 @@ import {
   validateKeyCondition,
 } from "../condition/condition.facade";
 import { ConditionExpressionBuilder, KeyConditionExpressionBuilder } from "../condition/condition.types";
-import { GenericTupleBuilderResultSchema, GenericTupleTableSchema } from "../general-test";
+import { GenericTupleBuilderResultSchema } from "../general-test";
 import {
   InferProjectionFieldsFromSchemas,
   OperationContext,
@@ -27,6 +27,8 @@ import {
   TransformTableSchemaIntoTupleSchemasMap,
   TupleMapBuilderResult,
 } from "../schema/schema.types";
+import { transformTypeDescriptorToValue } from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
+import { transformValueToTypeDescriptor } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
 import {
   FieldUpdateOperation,
   SetOperationDefFactory,
@@ -38,14 +40,6 @@ import {
   UpdateOperationBuilder,
 } from "./update-item.types";
 import { isFieldUpdateOperationDef } from "./update-item.utils";
-import {
-  getDescriptorFactoryForValueByPath,
-  transformValueToTypeDescriptor,
-} from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
-import {
-  getDecoderFactoryForValue,
-  transformTypeDescriptorToValue,
-} from "../schema/type-descriptor-converters/schema-type-descriptors.decoders";
 
 export const updateIndividualItemOperationBuilderFactory = <S>(
   schema: TupleMap,

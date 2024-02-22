@@ -1,4 +1,4 @@
-import { isAttributeType } from "../attribute/attribute";
+import { isAttributeType } from "../attribute/attribute.matchers";
 import {
   ExtractTupleMapBuilderResultFromSingleValue,
   InferTupledMap,
@@ -6,6 +6,7 @@ import {
   TupleMapBuilderResult,
   TypedTupleMapBuilder,
 } from "./schema.types";
+import { AttributeBuilder } from "../attribute/attribute.builder";
 
 const keyValuePeer = <K extends string, V>(key: K, value: V): TupleKeyValuePeer<K, V> => [key, value];
 
@@ -26,10 +27,15 @@ export const extractSchemaBuilderFieldValue = (
   }
 
   if (isAttributeType(value)) {
-    return {
-      attributeType: value.attributeType,
-      dataType: extractSchemaBuilderFieldValue(value.dataType),
-    };
+    return AttributeBuilder.fromAttribute({
+      ...value,
+      dataType: extractSchemaBuilderFieldValue(value.dataType)
+    });
+    // return {
+    //   ...value,
+    //   // attributeType: value.attributeType,
+    //   dataType: extractSchemaBuilderFieldValue(value.dataType),
+    // };
   }
 
   return value;

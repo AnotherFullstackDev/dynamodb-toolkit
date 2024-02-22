@@ -1,4 +1,5 @@
 import {
+  ApplyNullability,
   Attribute,
   DateAttribute,
   InferOriginalOrAttributeDataType,
@@ -9,37 +10,27 @@ import {
   SetAttribute,
   SortKey,
 } from "../attribute/attribute";
+import { deleteItemFacadeFactory } from "../delete-item/delete-item.facade";
 import { DeleteItemOperationBuilder } from "../delete-item/delete-item.types";
+import { GenericTupleBuilderResultSchema } from "../general-test";
+import { getItemOperationBuilderFactory } from "../get-item/get-item.facade";
 import { GetItemOperationBuilder } from "../get-item/get-item.types";
-import {
-  InferProjectionFieldsFromSchemas,
-  OperationContext,
-  ReturnConsumedCapacityValues,
-} from "../operations-common/operations-common.types";
+import { OperationContext } from "../operations-common/operations-common.types";
 import { putItemFacadeFactory } from "../put-item/put-item.facade";
 import { PutOperationBuilder } from "../put-item/put-item.types";
+import { queryOperationBuilder } from "../query/query.facade";
+import { QueryOperationBuilder } from "../query/query.types";
+import { scanOperationBuilderFacadeFactory } from "../scan/scan.facade";
+import { ScanOperationBuilder } from "../scan/scan.types";
 import {
   InferTupledMap,
-  PickOnlyNonPrimaryKeyAttributesFromTupledModelSchemasList,
-  PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
   TransformTableSchemaIntoSchemaInterfacesMap,
   TransformTableSchemaIntoTupleSchemasMap,
-  TupleKey,
   TupleKeyValuePeer,
   TupleMapBuilderResult,
-  TupleValue,
 } from "../schema/schema.types";
-import { GenericTupleBuilderResultSchema } from "../general-test";
-import { UpdateOperationBuilder } from "../update-item/update-item.types";
-import { QueryOperationBuilder } from "../query/query.types";
-import { queryOperationBuilder } from "../query/query.facade";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
 import { updateItemFacadeFactory } from "../update-item/update-item.facade";
-import { deleteItemFacadeFactory } from "../delete-item/delete-item.facade";
-import { getItemOperationBuilderFactory } from "../get-item/get-item.facade";
-import { ScanOperationBuilder } from "../scan/scan.types";
-import { scanOperationBuilderFacadeFactory } from "../scan/scan.facade";
+import { UpdateOperationBuilder } from "../update-item/update-item.types";
 
 // @TODO: evaluate if this type is neccesary
 export type EntitySchema<K extends string | number | symbol> = Record<
@@ -130,11 +121,12 @@ type GetAttributeOperatorsByType<T, M> = M extends [infer FT, ...infer R]
   : never;
 
 type ForEachKeyComparisonOperatorFactory<K, T> = T extends [infer KeyValuePeer, ...infer R]
-  ? KeyValuePeer extends TupleKeyValuePeer<string, unknown>
+  ? // ? KeyValuePeer extends TupleKeyValuePeer<string, unknown>
+    KeyValuePeer extends TupleKeyValuePeer<infer PK, infer PV>
     ? ComparisonOperatorFactory<
         K,
-        Record<TupleKey<KeyValuePeer>, InferOriginalOrAttributeDataType<TupleValue<KeyValuePeer>>>,
-        GetAttributeOperatorsByType<TupleValue<KeyValuePeer>, AttributeTypesToOperatorsTupledMap>
+        Record<PK, ApplyNullability<PV, InferOriginalOrAttributeDataType<PV>>>,
+        GetAttributeOperatorsByType<PV, AttributeTypesToOperatorsTupledMap>
       > &
         ForEachKeyComparisonOperatorFactory<K, R>
     : never

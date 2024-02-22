@@ -4,6 +4,8 @@
  * because each operation can work with only one item at a time
  */
 
+import { PutItemCommandOutput } from "@aws-sdk/client-dynamodb";
+import { ConditionExpressionBuilder } from "../condition/condition.types";
 import {
   ExpressionPlaceholdersHost,
   OperationDefBase,
@@ -11,16 +13,6 @@ import {
   ReturnConsumedCapacityValues,
   ReturnItemCollectionMetricsValues,
 } from "../operations-common/operations-common.types";
-import { ConditionExpressionBuilder } from "../condition/condition.types";
-import {
-  PickOnlyPrimaryKeyAttributesFromTupledModelSchemasList,
-  TransformTableSchemaIntoSchemaInterfacesMap,
-  TransformTableSchemaIntoTupleSchemasMap,
-  TupleMapBuilderResult,
-  TupledTableSchema,
-} from "../schema/schema.types";
-import { GenericInterfaceTableSchema, GenericTupleTableSchema } from "../general-test";
-import { PutItemCommandOutput } from "@aws-sdk/client-dynamodb";
 
 export type PutItemReturnValues = "ALL_OLD" | "NONE";
 

@@ -1,13 +1,26 @@
 import {
+  ApplyNullability,
+  ApplyOptional,
   Attribute,
   AttributeType,
-  IndexAttributeValueTypes,
+  CloneAttributeWithNewValue,
+  InferOptionalValue,
   ListAttribute,
   MapAttribute,
+  Optional,
+  OptionalValue,
   PartitionKey,
   SortKey,
 } from "../attribute/attribute";
-import { ConcatenateArrays } from "../utility-types";
+import { ConcatenateArrays, ContainsNull, ContainsUndefined, OmitByValue, PickByValue } from "../utility-types";
+
+// type UnitedWithNull<T> = T | null | undefined;
+// type TestNullable = string | null | undefined;
+// type IsString = TestNullable extends string ? true : false;
+// type IsNullable = TestNullable extends null ? true : false;
+// type IsCombined = TestNullable extends UnitedWithNull<string> ? true : false;
+// type ContainsNull = null extends TestNullable ? true : false;
+// type ContainsUndefined = undefined extends TestNullable ? true : false;
 
 // @TODO: might have problems with list of scalar values
 export type TransformTypeToSchemaBuilderInterface<T> = {
@@ -21,7 +34,7 @@ export type TransformTypeToSchemaBuilderInterface<T> = {
           : Attribute<AttributeType, TransformTypeToSchemaBuilderInterface<LV>>
       >
     : // : T[K] | Attribute<unknown, T[K]>;
-      Attribute<AttributeType, T[K] | Attribute<AttributeType, T[K]>>;
+      Attribute<AttributeType, T[K] | Attribute<AttributeType, T[K]>, ContainsNull<T[K]>, ContainsUndefined<T[K]>>;
 };
 
 type TupleMapBuilderOriginalInterface<T> = { interface: T };
@@ -59,7 +72,7 @@ export type ExtractAttributeValueType<V> = V extends TupleMapBuilderResult<infer
   : V;
 
 export type ExtractTupleMapBuilderResultFromSingleValue<T> = T extends Attribute<infer A, infer V>
-  ? Attribute<A, ExtractTupleMapBuilderResultFromSingleValue<ExtractAttributeValueType<V>>>
+  ? CloneAttributeWithNewValue<T, ExtractTupleMapBuilderResultFromSingleValue<ExtractAttributeValueType<V>>> // Attribute<A, ExtractTupleMapBuilderResultFromSingleValue<ExtractAttributeValueType<V>>>
   : T;
 
 type ETT = ExtractTupleMapBuilderResultFromSingleValue<Attribute<"REGULAR", number>>;
@@ -71,8 +84,8 @@ export type ExtractOriginalTypeFromSingleValue<T> = T extends Attribute<infer A,
       V extends TupleMapBuilderResult<infer RI> ? RI : V extends TupleMapBuilderOriginalInterface<infer OI> ? OI : V
     > extends infer ET
     ? A extends "LIST"
-      ? Array<ET>
-      : ET
+      ? ApplyOptional<T, ApplyNullability<T, Array<ET>>>
+      : ApplyOptional<T, ApplyNullability<T, ET>>
     : never
   : T;
 
@@ -98,6 +111,184 @@ export type ReconstructInterfaces<T> = T extends object
         : never;
     }
   : T;
+
+// DO NOT USE such utility types as they may not return the exact type but rather the parent supertype like boolean instead of true | false
+// type IsRecordType<T> = T extends object ? true : false;
+
+// type TurnOptionalFieldsToPartialForSingleValue<T> = OmitByValue<T, Optional<true>> &
+//   Partial<PickByValue<T, Optional<true>>>;
+type TurnOptionalFieldsToPartialForSingleValue<T> = RemapType<
+  OmitByValue<T, Optional<true>> & Partial<PickByValue<T, Optional<true>>>
+>;
+
+// type TurnOptionalFieldsToPartialOrDoNothing<T> = IsRecordType<T> extends true
+//   ? RemapType<InferOptionalValueForObjectFields<TurnOptionalFieldsToPartialForSingleValue<T>>>
+//   : T;
+type TurnOptionalFieldsToPartialOrDoNothing<T> = T extends Record<string, unknown>
+  ? T extends OptionalValue<infer OV>
+    ? OptionalValue<TurnOptionalFieldsToPartial<OV>>
+    : RemapType<InferOptionalValueForObjectFields<TurnOptionalFieldsToPartialForSingleValue<T>>>
+  : T;
+
+// TODO: the conversion functionality might be rewritten to rely on undefined as a merker of optionality instead of OptionalValue<T>
+export type TurnOptionalFieldsToPartial<T> = T extends Record<string, unknown>
+  ? // ? TurnOptionalFieldsToPartialOrDoNothing<{
+    {
+      // [K in keyof T]: TurnOptionalFieldsToPartial<TurnOptionalFieldsToPartialOrDoNothing<T[K]>>;
+
+      [K in keyof T]: TurnOptionalFieldsToPartialOrDoNothing<T[K]> extends infer R
+        ? TurnOptionalFieldsToPartial<R>
+        : never;
+
+      // [K in keyof T]: TurnOptionalFieldsToPartialOrDoNothing<T[K]> extends infer R
+      //   ? R extends object
+      //     ? TurnOptionalFieldsToPartial<R>
+      //     : R
+      //   : never;
+
+      // [K in keyof T]: T[K] extends OptionalValue<infer OV>
+      //   ? OptionalValue<TurnOptionalFieldsToPartial<OV>>
+      //   : TurnOptionalFieldsToPartial<TurnOptionalFieldsToPartialOrDoNothing<T[K]>>;
+    } extends infer M
+    ? TurnOptionalFieldsToPartialOrDoNothing<M>
+    : never
+  : // }>
+  // : T;
+  T extends Array<infer AV>
+  ? AV extends OptionalValue<infer OV>
+    ? OptionalValue<Array<TurnOptionalFieldsToPartial<OV>>>
+    : Array<TurnOptionalFieldsToPartial<AV>>
+  : T;
+
+type RemapType<T> = T extends Record<string, unknown> ? { [K in keyof T]: T[K] } : T;
+
+type InferOptionalValueForObjectFields<T> = { [K in keyof T]: InferOptionalValue<T[K]> };
+
+type OSF = TurnOptionalFieldsToPartialOrDoNothing<{
+  // a: string;
+  b: OptionalValue<string>;
+  c: OptionalValue<{
+    a: string;
+    b: OptionalValue<string>;
+  }>;
+}>;
+
+type OptionalValuesTestPlain = TurnOptionalFieldsToPartial<{
+  a: string;
+  b: OptionalValue<string>;
+  c: OptionalValue<{
+    a: OptionalValue<string>;
+    // b: OptionalValue<string>;
+  }>;
+  d: number[];
+  j: OptionalValue<number>[];
+  i: OptionalValue<number[]>;
+  f: OptionalValue<{ a: number }[]>;
+  k: OptionalValue<{ a: number }>[];
+  m: OptionalValue<{ a: OptionalValue<number>[] }>[];
+}>;
+
+type HalfOptionalValuesTestDeepNesting = TurnOptionalFieldsToPartial<{
+  a: {
+    a: OptionalValue<{
+      a: OptionalValue<{
+        a: OptionalValue<{
+          a: OptionalValue<string>;
+          // b: number;
+          b: OptionalValue<{
+            a: number;
+            c: Date;
+            d: OptionalValue<Date>;
+          }>;
+        }>;
+      }>;
+    }>;
+  };
+}>;
+
+type OneToOneOptionalValuesDeepNesting = TurnOptionalFieldsToPartial<{
+  a: {
+    a: OptionalValue<{
+      a: {
+        a: OptionalValue<{
+          a: OptionalValue<string>;
+        }>;
+      };
+    }>;
+  };
+}>;
+
+type VariousTypesAtSameLevel = TurnOptionalFieldsToPartial<{
+  a: string;
+  b: OptionalValue<number>;
+  c: OptionalValue<{
+    a: string;
+    b: OptionalValue<number>;
+  }>;
+  d: {
+    a: Date;
+    b: number;
+    c: {
+      a: OptionalValue<{ a: string }>;
+    };
+  };
+  i: {
+    a: boolean;
+    b: OptionalValue<boolean>;
+    c: OptionalValue<
+      {
+        a: boolean;
+        b: OptionalValue<boolean>;
+      }[]
+    >;
+  }[];
+}>;
+
+const asd: HalfOptionalValuesTestDeepNesting = {
+  a: {
+    a: {
+      a: {
+        a: {
+          a: "10",
+        },
+      },
+    },
+  },
+};
+
+type TT = TurnOptionalFieldsToPartial<{
+  // a: Attribute<AttributeType.DATE, Date, false, false>;
+  // b: OptionalValue<Attribute<AttributeType.DATE, Date, false, true>>;
+  a: string;
+  b: OptionalValue<string>;
+  c: OptionalValue<{
+    b: OptionalValue<string>;
+    c: OptionalValue<{
+      b: OptionalValue<string>;
+      j: OptionalValue<{
+        a: string;
+        b: OptionalValue<string>;
+      }>;
+    }>;
+  }>[];
+  // d: {
+  //   a: {
+  //     a: {
+  //       a: OptionalValue<string>;
+  //     };
+  //   };
+  // };
+}>;
+
+const t: TT = {
+  c: [
+    {
+      c: {
+        b: "s",
+      },
+    },
+  ],
+};
 
 // TODO: map builders should be uniform
 // TODO: map builders should always accept attribute as a value (currently, untill we have a wrapper for a data type)
@@ -165,7 +356,7 @@ export type ConcatenateKeys<K extends unknown[], D extends string = "."> = K ext
 export type ForEachMapValuePrependKey<T, K extends string = ""> = T extends [infer F, ...infer R]
   ? F extends [infer FK, infer FV]
     ? [
-        [ConcatenateKeys<[K, FK]>, FV],
+        [ConcatenateKeys<[K, FK]>, ApplyNullability<F, FV>],
 
         ...(FV extends Attribute<"MAP", [...TupleKeyValuePeer<string, unknown>[]]>
           ? ForEachMapValuePrependKey<InferAttributeValue<FV>, ConcatenateKeys<[K, FK]>>
@@ -181,14 +372,18 @@ export type ForEachMapValuePrependKey<T, K extends string = ""> = T extends [inf
 
 export type TransformTableSchemaIntoSchemaInterfacesMap<T> = T extends [infer F, ...infer R]
   ? F extends [infer K, infer S]
-    ? [[K, ReconstructInterfaces<InferTupleMapInterface<S>>], ...TransformTableSchemaIntoSchemaInterfacesMap<R>]
+    ? [
+        [K, TurnOptionalFieldsToPartial<ReconstructInterfaces<InferTupleMapInterface<S>>>],
+        ...TransformTableSchemaIntoSchemaInterfacesMap<R>,
+      ]
     : never
   : T;
 
 export type TransformTableSchemaIntoTupleSchemasMap<T> = T extends [infer F, ...infer R]
   ? F extends [infer K, infer S]
     ? [[K, ForEachMapValuePrependKey<InferTupledMap<S>>], ...TransformTableSchemaIntoTupleSchemasMap<R>]
-    : never
+    : // [[K, InferTupledMap<S>], ...TransformTableSchemaIntoTupleSchemasMap<R>]
+      never
   : T;
 
 export type FilterTupleSchemasByType<T, P> = T extends [infer F, ...infer R]
@@ -283,7 +478,8 @@ export type PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<T> = T exte
     TupleValue<AttributeTuple> extends PartitionKey<any> | SortKey<any>
     ? PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<R>
     : [
-        [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],
+        // [TupleKey<AttributeTuple>, TupleValue<AttributeTuple>],
+        AttributeTuple,
         ...PickOnlyNonPrimaryKeyAttributesFromTupledFieldSchemaList<R>,
       ]
   : T;
