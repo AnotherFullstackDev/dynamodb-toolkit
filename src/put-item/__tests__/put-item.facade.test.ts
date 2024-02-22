@@ -4,14 +4,21 @@ import {
   mapDescriptorFactory,
   numberDescriptorFactory,
   stringDescriptorFactory,
-} from "../../schema/schema-to-type-descriptors.utils";
+} from "../../schema/type-descriptor-converters/schema-type-descriptors.encoders";
 import { schema } from "../../schema/schema.facade";
 import { PutItemOperationDef } from "../put-item.types";
+import { OperationContext, OperationType } from "../../operations-common/operations-common.types";
+
+const mockContext: OperationContext = {
+  tableName: "test_table",
+  client: {} as any,
+  runner: (() => null) as any,
+};
 
 describe("General usage of put item operation builder", () => {
   const testSchema = schema().add("name", partitionKey(string())).build();
   const testTable = schema().add("users", testSchema).build();
-  const qb = queryBuilder(testTable);
+  const qb = queryBuilder(testTable).withContext(mockContext);
 
   it("should build a put item builder with an item param", () => {
     const putItemBuilder = qb
@@ -22,6 +29,7 @@ describe("General usage of put item operation builder", () => {
       .build();
 
     expect(putItemBuilder).toStrictEqual<PutItemOperationDef>({
+      type: OperationType.PUT,
       item: mapDescriptorFactory({ name: stringDescriptorFactory("John Doe") }),
       condition: null,
       returnValues: null,
@@ -42,10 +50,13 @@ describe("General usage of put item operation builder", () => {
       .build();
 
     expect(putItemBuilder).toStrictEqual<PutItemOperationDef>({
+      type: OperationType.PUT,
       item: mapDescriptorFactory({ name: stringDescriptorFactory("John Doe") }),
-      condition: "name = :name_0",
-      expressionAttributeValues: { ":name_0": "John Doe" },
-      expressionAttributeNames: null,
+      condition: "#name_0 = :name_0",
+      expressionAttributeValues: { ":name_0": stringDescriptorFactory("John Doe") },
+      expressionAttributeNames: {
+        "#name_0": "name",
+      },
       returnValues: null,
       returnConsumedCapacity: null,
       returnItemCollectionMetrics: null,
@@ -56,7 +67,7 @@ describe("General usage of put item operation builder", () => {
 describe("Conditions building", () => {
   const testSchema = schema().add("name", partitionKey(string())).add("age", sortKey(number())).build();
   const testTable = schema().add("users", testSchema).build();
-  const qb = queryBuilder(testTable);
+  const qb = queryBuilder(testTable).withContext(mockContext);
 
   it("should build a put item builder result with AND logical condition", () => {
     const putItemBuilder = qb
@@ -69,10 +80,17 @@ describe("Conditions building", () => {
       .build();
 
     expect(putItemBuilder).toStrictEqual<PutItemOperationDef>({
+      type: OperationType.PUT,
       item: mapDescriptorFactory({ name: stringDescriptorFactory("John Doe"), age: numberDescriptorFactory(25) }),
-      condition: "(name = :name_0 AND age > :age_1)",
-      expressionAttributeValues: { ":name_0": "John Doe", ":age_1": 18 },
-      expressionAttributeNames: null,
+      condition: "(#name_0 = :name_0 AND #age_1 > :age_1)",
+      expressionAttributeValues: {
+        ":name_0": stringDescriptorFactory("John Doe"),
+        ":age_1": numberDescriptorFactory(18),
+      },
+      expressionAttributeNames: {
+        "#name_0": "name",
+        "#age_1": "age",
+      },
       returnValues: null,
       returnConsumedCapacity: null,
       returnItemCollectionMetrics: null,
@@ -90,10 +108,20 @@ describe("Conditions building", () => {
       .build();
 
     expect(putItemBuilder).toStrictEqual<PutItemOperationDef>({
-      item: mapDescriptorFactory({ name: stringDescriptorFactory("John Doe"), age: numberDescriptorFactory(25) }),
-      condition: "(name = :name_0 OR age > :age_1)",
-      expressionAttributeValues: { ":name_0": "John Doe", ":age_1": 18 },
-      expressionAttributeNames: null,
+      type: OperationType.PUT,
+      item: mapDescriptorFactory({
+        name: stringDescriptorFactory("John Doe"),
+        age: numberDescriptorFactory(25),
+      }),
+      condition: "(#name_0 = :name_0 OR #age_1 > :age_1)",
+      expressionAttributeValues: {
+        ":name_0": stringDescriptorFactory("John Doe"),
+        ":age_1": numberDescriptorFactory(18),
+      },
+      expressionAttributeNames: {
+        "#name_0": "name",
+        "#age_1": "age",
+      },
       returnValues: null,
       returnConsumedCapacity: null,
       returnItemCollectionMetrics: null,
@@ -115,15 +143,28 @@ describe("Conditions building", () => {
       .build();
 
     expect(putItemBuilder).toStrictEqual<PutItemOperationDef>({
-      item: mapDescriptorFactory({ name: stringDescriptorFactory("John Doe"), age: numberDescriptorFactory(25) }),
-      condition: "(name = :name_0 AND (age > :age_1 OR age < :age_2))",
-      expressionAttributeValues: { ":name_0": "John Doe", ":age_1": 18, ":age_2": 30 },
-      expressionAttributeNames: null,
+      type: OperationType.PUT,
+      item: mapDescriptorFactory({
+        name: stringDescriptorFactory("John Doe"),
+        age: numberDescriptorFactory(25),
+      }),
+      condition: "(#name_0 = :name_0 AND (#age_1 > :age_1 OR #age_2 < :age_2))",
+      expressionAttributeValues: {
+        ":name_0": stringDescriptorFactory("John Doe"),
+        ":age_1": numberDescriptorFactory(18),
+        ":age_2": numberDescriptorFactory(30),
+      },
+      expressionAttributeNames: {
+        "#name_0": "name",
+        "#age_1": "age",
+        "#age_2": "age",
+      },
       returnValues: null,
       returnConsumedCapacity: null,
       returnItemCollectionMetrics: null,
     });
   });
 
-  it("should build a put item builder result with nested logical conditions and NOT", () => {});
+  it("should build a put item builder result with nested logical conditions and NOT", () => {
+  });
 });

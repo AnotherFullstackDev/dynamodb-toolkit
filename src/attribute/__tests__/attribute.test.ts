@@ -2,6 +2,12 @@ import {
   binary,
   bool,
   date,
+  list,
+  map,
+  number,
+  string,
+} from "../attribute";
+import {
   isBinaryAttribute,
   isBooleanAttribute,
   isDateAttribute,
@@ -9,11 +15,7 @@ import {
   isMapAttribute,
   isNumberAttribute,
   isStringAttribute,
-  list,
-  map,
-  number,
-  string,
-} from "../attribute";
+} from "../attribute.matchers";
 
 describe("Usage of attribute matches", () => {
   it("should match attribute type", () => {
