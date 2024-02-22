@@ -2,7 +2,7 @@ import { UpdateItemCommandOutput } from "@aws-sdk/client-dynamodb";
 import { PartitionKey, SortKey } from "../attribute/attribute";
 import {
   getAttributeNamePlaceholder,
-  getValuePlaceholderFromAttrinuteName,
+  getValuePlaceholderFromAttributeName,
   runConditionBuilder,
   runKeyConditionBuilder,
   serializeConditionDef,
@@ -75,7 +75,7 @@ export const updateIndividualItemOperationBuilderFactory = <S>(
         // @TODO: with values serialization there is possible a colision when fields defined in different nested object will have the same name
         // But that should not be a problem because the field placeholder just reflects its name
         const fieldPlaceholder = getAttributeNamePlaceholder(operationDef.field, "");
-        const valuePlaceholder = getValuePlaceholderFromAttrinuteName(operationDef.field);
+        const valuePlaceholder = getValuePlaceholderFromAttributeName(operationDef.field);
         const encodedValue = transformValueToTypeDescriptor(
           schema.getByPath(operationDef.field)!.value() as unknown as TupleMap,
           operationDef.operation.value,

@@ -40,14 +40,19 @@ export const logicalOperationFactory = (
   },
 });
 
-export const getAttributeNamePlaceholder = (field: string, suffix: string | number) => {
+const withSuffix = (value: string, additionalSuffix?: string | number) =>
+  additionalSuffix === undefined || String(additionalSuffix).trim() === "" ? value : `${value}_${additionalSuffix}`;
+
+const sanitizeAttributePathSegment = (value: string) => value.replace(/[\[\]]/g, "");
+
+export const getAttributeNamePlaceholder = (field: string, suffix?: string | number) => {
   const isNestedPath = field.includes(".");
   if (isNestedPath) {
     const pathParts = field.split(".");
     const pathWithPlaceholders = pathParts.reduce<{ path: string[]; placeholders: Record<string, string> }>(
       (result, item, idx) => {
         // const attributeNamePlaceholder = `#${item}_idx_${idx}_${suffix}`;
-        const attributeNamePlaceholder = `#${item}`;
+        const attributeNamePlaceholder = "#" + withSuffix(sanitizeAttributePathSegment(item), suffix);
 
         result.path.push(attributeNamePlaceholder);
         result.placeholders[attributeNamePlaceholder] = item;
@@ -63,7 +68,8 @@ export const getAttributeNamePlaceholder = (field: string, suffix: string | numb
     };
   }
 
-  const attributeNamePlaceholder = `#${field}_${suffix}`;
+  // const attributeNamePlaceholder = `#${field}_${suffix}`;
+  const attributeNamePlaceholder = "#" + withSuffix(sanitizeAttributePathSegment(field), suffix);
   return {
     attributeNamePlaceholder,
     attributeNamePlaceholderValues: {
@@ -72,9 +78,10 @@ export const getAttributeNamePlaceholder = (field: string, suffix: string | numb
   };
 };
 
-export const getValuePlaceholderFromAttrinuteName = (attributeName: string, suffix?: string | number) => {
-  const baseValue = `:${attributeName.replace(".", "_")}`;
-  return suffix === undefined ? baseValue : `${baseValue}_${suffix}`;
+export const getValuePlaceholderFromAttributeName = (attributeName: string, suffix?: string | number) => {
+  const baseValue = `:${sanitizeAttributePathSegment(attributeName).replace(/\./g, "_")}`;
+
+  return withSuffix(baseValue, suffix);
 };
 
 // @TODO: an entity schema must be used during serialization to get proper  type descriptors
@@ -135,7 +142,7 @@ export const serializeConditionDef = (
     const valueDescriptor = getDescriptorFactoryForValueByPath(schema, value.operator.field);
     // const attributeNamePlaceholder = `#${value.operator.field}_${state.conditionIndex}`;
     // const valuePlaceholder = `:${value.operator.field.replace(".", "_")}_${state.conditionIndex}`;
-    const valuePlaceholder = getValuePlaceholderFromAttrinuteName(value.operator.field, state.conditionIndex);
+    const valuePlaceholder = getValuePlaceholderFromAttributeName(value.operator.field, state.conditionIndex);
     const condition = [attributeNamePlaceholder, value.operator.operator, valuePlaceholder].join(" ");
 
     return {
