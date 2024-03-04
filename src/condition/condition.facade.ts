@@ -7,11 +7,20 @@ import {
   KeyConditionExpressionBuilder,
   LogicalOperatorDefinition,
   LogicalOperators,
+  NoValueComparisonOperatorDefinition,
+  NoValueComparisonOperatorFactory,
   OperatorDefinition,
 } from "./condition.types";
-import { getDescriptorFactoryForValueByPath } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
-import { TypeDescriptor } from "../schema/type-descriptor-converters/schema-type-descriptors.types";
+import {
+  getDescriptorFactoryForValueByPath,
+  numberDescriptorFactory,
+} from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
+import {
+  AttributeTypeDescriptorKey,
+  TypeDescriptor,
+} from "../schema/type-descriptor-converters/schema-type-descriptors.types";
 import { isPartitionKeyAttribute, isSortKeyAttribute } from "../attribute/attribute.matchers";
+import { GenericCondition } from "../operations-common/operations-common.types";
 
 export const comparisonOperationFactory: ComparisonOperatorFactory<string, Record<string, unknown>, string> = (
   field,
@@ -28,10 +37,7 @@ export const comparisonOperationFactory: ComparisonOperatorFactory<string, Recor
 
 export const logicalOperationFactory = (
   operator: LogicalOperators,
-  conditions: Array<
-    | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
-    | OperatorDefinition<"logical", LogicalOperatorDefinition>
-  >,
+  conditions: Array<GenericCondition>,
 ): OperatorDefinition<"logical", LogicalOperatorDefinition> => ({
   type: "logical",
   operator: {
@@ -84,10 +90,23 @@ export const getValuePlaceholderFromAttributeName = (attributeName: string, suff
   return withSuffix(baseValue, suffix);
 };
 
+const isNoValueConditionDefinition = (value: unknown): value is NoValueComparisonOperatorDefinition<string, string> =>
+  !!value && typeof value === "object" && "operation" in value && "field" in value && !("value" in value);
+
+const isConditionDefinition = (
+  value:
+    | ComparisonOperatorDefinition<string, string, EntitySchema<string>>
+    | NoValueComparisonOperatorDefinition<string, string>,
+): value is ComparisonOperatorDefinition<string, string, EntitySchema<string>> => !isNoValueConditionDefinition(value);
+
 // @TODO: an entity schema must be used during serialization to get proper  type descriptors
 export const serializeConditionDef = (
   value:
-    | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
+    | OperatorDefinition<
+        "conditional",
+        | ComparisonOperatorDefinition<string, string, EntitySchema<string>>
+        | NoValueComparisonOperatorDefinition<string, string>
+      >
     | OperatorDefinition<"logical", LogicalOperatorDefinition>,
   state: { conditionIndex: number } = { conditionIndex: 0 },
   schema: TupleMap,
@@ -135,6 +154,90 @@ export const serializeConditionDef = (
   }
 
   if (value.type === "conditional") {
+    if (value.operator.operator === "between") {
+      const attributePlaceholders = getAttributeNamePlaceholder(value.operator.field, state.conditionIndex);
+      const valueDescriptor = getDescriptorFactoryForValueByPath(schema, value.operator.field);
+      const fromValuePlaceholder = getValuePlaceholderFromAttributeName(
+        value.operator.field,
+        `from_${state.conditionIndex}`,
+      );
+      const toValuePlaceholder = getValuePlaceholderFromAttributeName(
+        value.operator.field,
+        `to_${state.conditionIndex}`,
+      );
+      const condition = `${attributePlaceholders.attributeNamePlaceholder} BETWEEN ${fromValuePlaceholder} AND ${toValuePlaceholder}`;
+      const valuePlaceholders: Record<string, TypeDescriptor<AttributeTypeDescriptorKey, unknown>> = {
+        [fromValuePlaceholder]: valueDescriptor!(
+          (
+            (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value as unknown[]
+          )[0],
+        ),
+        [toValuePlaceholder]: valueDescriptor!(
+          (
+            (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value as unknown[]
+          )[1],
+        ),
+      };
+
+      return {
+        condition,
+        valuePlaceholders,
+        attributeNamePlaceholders: attributePlaceholders.attributeNamePlaceholderValues,
+      };
+    }
+
+    if (value.operator.operator === "size") {
+      const attributePlaceholders = getAttributeNamePlaceholder(value.operator.field, state.conditionIndex);
+      const valuePlaceholder = getValuePlaceholderFromAttributeName(
+        value.operator.field,
+        `size_${state.conditionIndex}`,
+      );
+      const operator = (
+        (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value as unknown[]
+      )[0];
+      const operatorValue = (
+        (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value as unknown[]
+      )[1];
+      const condition = `size(${attributePlaceholders.attributeNamePlaceholder}) ${operator} ${valuePlaceholder}`;
+
+      const valuePlaceholders: Record<string, TypeDescriptor<"N", unknown>> = {
+        [valuePlaceholder]: numberDescriptorFactory(operatorValue as number),
+      };
+
+      return {
+        condition,
+        valuePlaceholders,
+        attributeNamePlaceholders: attributePlaceholders.attributeNamePlaceholderValues,
+      };
+    }
+
+    if (value.operator.operator === "in") {
+      const attributePlaceholders = getAttributeNamePlaceholder(value.operator.field, state.conditionIndex);
+      const valueDescriptor = getDescriptorFactoryForValueByPath(schema, value.operator.field);
+      const valuePlaceholders = (
+        (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value as unknown[]
+      )
+        .map((item, idx) => [
+          item,
+          getValuePlaceholderFromAttributeName(value.operator.field, `in_${idx}_${state.conditionIndex}`),
+        ])
+        .reduce((result, [value, placeholder]) => {
+          result[placeholder as string] = valueDescriptor!(value);
+
+          return result;
+        }, {} as Record<string, TypeDescriptor<AttributeTypeDescriptorKey, unknown>>);
+      const valuePlaceholder = getValuePlaceholderFromAttributeName(value.operator.field, state.conditionIndex);
+      const condition = `${attributePlaceholders.attributeNamePlaceholder} IN (${Object.keys(valuePlaceholders).join(
+        ", ",
+      )})`;
+
+      return {
+        condition,
+        valuePlaceholders,
+        attributeNamePlaceholders: attributePlaceholders.attributeNamePlaceholderValues,
+      };
+    }
+
     const { attributeNamePlaceholder, attributeNamePlaceholderValues } = getAttributeNamePlaceholder(
       value.operator.field,
       state.conditionIndex,
@@ -143,13 +246,44 @@ export const serializeConditionDef = (
     // const attributeNamePlaceholder = `#${value.operator.field}_${state.conditionIndex}`;
     // const valuePlaceholder = `:${value.operator.field.replace(".", "_")}_${state.conditionIndex}`;
     const valuePlaceholder = getValuePlaceholderFromAttributeName(value.operator.field, state.conditionIndex);
-    const condition = [attributeNamePlaceholder, value.operator.operator, valuePlaceholder].join(" ");
+    let condition: string = "";
+
+    switch (value.operator.operator) {
+      case "attribute_exists":
+        condition = `attribute_exists(${attributeNamePlaceholder})`;
+        break;
+
+      case "attribute_not_exists":
+        condition = `attribute_not_exists(${attributeNamePlaceholder})`;
+        break;
+
+      case "attribute_type":
+        condition = `attribute_type(${attributeNamePlaceholder}, ${valuePlaceholder})`;
+        break;
+
+      case "begins_with":
+        condition = `begins_with(${attributeNamePlaceholder}, ${valuePlaceholder})`;
+        break;
+
+      case "contains":
+        condition = `contains(${attributeNamePlaceholder}, ${valuePlaceholder})`;
+        break;
+
+      default:
+        condition = [attributeNamePlaceholder, value.operator.operator, valuePlaceholder].join(" ");
+        break;
+    }
+
+    const valuePlaceholders: Record<string, TypeDescriptor<AttributeTypeDescriptorKey, unknown>> = {};
+
+    const conditionDef = value.operator;
+    if (isConditionDefinition(conditionDef)) {
+      valuePlaceholders[valuePlaceholder] = valueDescriptor!(conditionDef.value);
+    }
 
     return {
       condition,
-      valuePlaceholders: {
-        [valuePlaceholder]: valueDescriptor!(value.operator.value),
-      },
+      valuePlaceholders,
       attributeNamePlaceholders: attributeNamePlaceholderValues,
     };
   }
@@ -174,9 +308,7 @@ const serializeKeyConditionComparison = (
 };
 
 export const serializeKeyConditionDef = (
-  value:
-    | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
-    | OperatorDefinition<"logical", LogicalOperatorDefinition>,
+  value: GenericCondition,
   schema: TupleMap,
 ): Record<string, TypeDescriptor<string, unknown>> => {
   if (value.type === "logical") {

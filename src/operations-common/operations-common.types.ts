@@ -3,6 +3,7 @@ import {
   ComparisonOperatorDefinition,
   EntitySchema,
   LogicalOperatorDefinition,
+  NoValueComparisonOperatorDefinition,
   OperatorDefinition,
 } from "../condition/condition.types";
 import { CombineArrayElementsViaUnion, ConcatenateArrays } from "../utility-types";
@@ -44,7 +45,11 @@ export type ExpressionPlaceholdersHost = {
 };
 
 export type GenericCondition =
-  | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
+  | OperatorDefinition<
+      "conditional",
+      | ComparisonOperatorDefinition<string, string, EntitySchema<string>>
+      | NoValueComparisonOperatorDefinition<string, string>
+    >
   | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
 export type OperationContext = {

@@ -29,6 +29,7 @@ import {
   TupleKeyValuePeer,
   TupleMapBuilderResult,
 } from "../schema/schema.types";
+import { AttributeTypeDescriptorKey } from "../schema/type-descriptor-converters/schema-type-descriptors.types";
 import { updateItemFacadeFactory } from "../update-item/update-item.facade";
 import { UpdateOperationBuilder } from "../update-item/update-item.types";
 
@@ -50,12 +51,21 @@ export type ComparisonOperatorDefinition<
   value: InferOriginalOrAttributeDataType<S[F]>;
 };
 
+export type NoValueComparisonOperatorDefinition<F extends string | number | symbol, O extends string> = {
+  field: F;
+  operator: O;
+};
+
 // The type might be make stricter by accepting the operator as a generic type parameter. It might help during implementation of the builder.
 export type LogicalOperatorDefinition = {
   operator: LogicalOperators;
   // conditions: Array<ComparisonOperatorDefinition<string, string, EntitySchema<string>> | LogicalOperatorDefinition>;
   conditions: Array<
-    | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, string, EntitySchema<string>>>
+    | OperatorDefinition<
+        "conditional",
+        | ComparisonOperatorDefinition<string, string, EntitySchema<string>>
+        | NoValueComparisonOperatorDefinition<string, string>
+      >
     | OperatorDefinition<"logical", LogicalOperatorDefinition>
   >;
 };
@@ -64,6 +74,7 @@ export type OperatorDefinition<
   T extends "conditional" | "logical" | "function",
   O extends
     | ComparisonOperatorDefinition<string | number | symbol, string, EntitySchema<string>>
+    | NoValueComparisonOperatorDefinition<string | number | symbol, string>
     | LogicalOperatorDefinition,
 > = {
   type: T;
@@ -73,12 +84,34 @@ export type OperatorDefinition<
 
 export type ComparisonOperatorFactory<N, S extends Record<string, unknown>, O extends string> = <
   LN extends N, // necessary to make the model names generics work
+  LO extends O,
+  F extends keyof S = keyof S,
+>(
+  field: F,
+  operator: LO,
+  value: LO extends "between"
+    ? [InferOriginalOrAttributeDataType<S[F]>, InferOriginalOrAttributeDataType<S[F]>]
+    : LO extends "in"
+    ? InferOriginalOrAttributeDataType<S[F]>[]
+    : LO extends "size"
+    ? [Exclude<ComparisonOperators, "begins_with" | "between" | "in">, number]
+    : LO extends "attribute_type"
+    ? AttributeTypeDescriptorKey
+    : InferOriginalOrAttributeDataType<S[F]>,
+) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, LO, S>>;
+
+export type NoValueComparisonOperatorFactory<
+  N,
+  S extends Record<string, unknown>,
+  O extends "attribute_exists" | "attribute_not_exists",
+> = <
+  LN extends N, // necessary to make the model names generics work
   F extends keyof S = keyof S,
 >(
   field: F,
   operator: O,
-  value: InferOriginalOrAttributeDataType<S[F]>,
-) => OperatorDefinition<"conditional", ComparisonOperatorDefinition<F, O, S>>;
+) => OperatorDefinition<"conditional", NoValueComparisonOperatorDefinition<F, O>>;
+// ) => any;
 
 export type LogicalOperatorFactory<S extends EntitySchema<string>> = <F extends keyof S>(
   operator: LogicalOperators,
@@ -126,8 +159,19 @@ type ForEachKeyComparisonOperatorFactory<K, T> = T extends [infer KeyValuePeer, 
     ? ComparisonOperatorFactory<
         K,
         Record<PK, ApplyNullability<PV, InferOriginalOrAttributeDataType<PV>>>,
-        GetAttributeOperatorsByType<PV, AttributeTypesToOperatorsTupledMap>
+        Exclude<
+          GetAttributeOperatorsByType<PV, AttributeTypesToOperatorsTupledMap>,
+          "attribute_exists" | "attribute_not_exists"
+        >
       > &
+        NoValueComparisonOperatorFactory<
+          K,
+          Record<PK, ApplyNullability<PV, InferOriginalOrAttributeDataType<PV>>>,
+          Extract<
+            GetAttributeOperatorsByType<PV, AttributeTypesToOperatorsTupledMap>,
+            "attribute_exists" | "attribute_not_exists"
+          >
+        > &
         ForEachKeyComparisonOperatorFactory<K, R>
     : never
   : T;
@@ -150,7 +194,8 @@ export type ConditionExpressionBuilder<S> = (
         // | OperatorDefinition<"conditional", ComparisonOperatorDefinition<string, QueryComparisonOperators, S>>
         | OperatorDefinition<
             "conditional",
-            ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
+            | ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
+            | NoValueComparisonOperatorDefinition<string, ComparisonFunctions>
           >
         | OperatorDefinition<"logical", LogicalOperatorDefinition>
       >,
@@ -159,7 +204,8 @@ export type ConditionExpressionBuilder<S> = (
 ) =>
   | OperatorDefinition<
       "conditional",
-      ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
+      | ComparisonOperatorDefinition<string, ComparisonOperators | ComparisonFunctions, EntitySchema<string>>
+      | NoValueComparisonOperatorDefinition<string, ComparisonFunctions>
     >
   | OperatorDefinition<"logical", LogicalOperatorDefinition>;
 
