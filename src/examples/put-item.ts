@@ -5,11 +5,12 @@ import { qb } from "./example-context";
     .put()
     .item("users", {
       name: "John",
-      age: 33,
-      role: undefined,
-      registrationDate: new Date(),
+      age: 38,
+      role: "super-admin",
+      registrationDate: new Date("2022-03-10T20:10:02.328Z"),
       cardIds: ["123", "456"],
-      commentIds: [null, "789"],
+      // commentIds: [null, "789"],
+      commentIds: ["789"],
       // building: null,
       building: {
         street: "Main St",
@@ -17,11 +18,10 @@ import { qb } from "./example-context";
         zip: "12345",
         type: "house",
         size: 3000,
-        // rooms: [{ size: 100 }, { size: 200 }],
-        rooms: null,
+        rooms: [{ size: 100 }, { size: 200 }],
+        // rooms: null,
       },
     })
-    //   NOTE: The condition is executed for this particular item and not for all the items in a collection
     // .condition((eb) => eb("building.size", "<>", 3000))
     //   .throwIfExists()
     .returnValues("ALL_OLD")

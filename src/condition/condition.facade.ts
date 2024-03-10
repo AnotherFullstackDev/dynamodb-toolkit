@@ -12,6 +12,7 @@ import {
   OperatorDefinition,
 } from "./condition.types";
 import {
+  getDescriptorFactoryForValue,
   getDescriptorFactoryForValueByPath,
   numberDescriptorFactory,
 } from "../schema/type-descriptor-converters/schema-type-descriptors.encoders";
@@ -21,6 +22,7 @@ import {
 } from "../schema/type-descriptor-converters/schema-type-descriptors.types";
 import { isPartitionKeyAttribute, isSortKeyAttribute } from "../attribute/attribute.matchers";
 import { GenericCondition } from "../operations-common/operations-common.types";
+import { isTupleMap } from "../schema/schema-tuple-map.utils";
 
 export const comparisonOperationFactory: ComparisonOperatorFactory<string, Record<string, unknown>, string> = (
   field,
@@ -143,8 +145,18 @@ export const serializeConditionDef = (
         },
         { conditions: [], valuePlaceholders: {}, attributeNamePlaceholders: {} },
       );
-    // .join(` ${value.operator.operator} `);
-    const combinedCondition = conditions.join(` ${value.operator.operator.toUpperCase()} `);
+
+    const normalizedOperator = value.operator.operator.toUpperCase();
+    let combinedCondition = null;
+    if (normalizedOperator === "NOT") {
+      if (conditions.length > 1) {
+        throw new Error("NOT operator can only have one condition");
+      }
+
+      combinedCondition = `${normalizedOperator} ${conditions[0]}`;
+    } else {
+      combinedCondition = conditions.join(` ${normalizedOperator} `);
+    }
 
     return {
       condition: `(${combinedCondition})`,
@@ -250,40 +262,79 @@ export const serializeConditionDef = (
 
     switch (value.operator.operator) {
       case "attribute_exists":
-        condition = `attribute_exists(${attributeNamePlaceholder})`;
-        break;
+        return {
+          condition: `attribute_exists(${attributeNamePlaceholder})`,
+          valuePlaceholders: {},
+          attributeNamePlaceholders: attributeNamePlaceholderValues,
+        };
 
       case "attribute_not_exists":
-        condition = `attribute_not_exists(${attributeNamePlaceholder})`;
-        break;
+        return {
+          condition: `attribute_not_exists(${attributeNamePlaceholder})`,
+          valuePlaceholders: {},
+          attributeNamePlaceholders: attributeNamePlaceholderValues,
+        };
 
       case "attribute_type":
-        condition = `attribute_type(${attributeNamePlaceholder}, ${valuePlaceholder})`;
-        break;
+        return {
+          condition: `attribute_type(${attributeNamePlaceholder}, ${valuePlaceholder})`,
+          valuePlaceholders: {
+            [valuePlaceholder]: valueDescriptor!(
+              (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value,
+            ),
+          },
+          attributeNamePlaceholders: attributeNamePlaceholderValues,
+        };
 
       case "begins_with":
-        condition = `begins_with(${attributeNamePlaceholder}, ${valuePlaceholder})`;
-        break;
+        return {
+          condition: `begins_with(${attributeNamePlaceholder}, ${valuePlaceholder})`,
+          valuePlaceholders: {
+            [valuePlaceholder]: valueDescriptor!(
+              (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value,
+            ),
+          },
+          attributeNamePlaceholders: attributeNamePlaceholderValues,
+        };
 
-      case "contains":
-        condition = `contains(${attributeNamePlaceholder}, ${valuePlaceholder})`;
-        break;
+      case "contains": {
+        let valueDescriptor = null;
+        const pathSchema = schema.getByPath(value.operator.field)?.value();
+
+        console.log(pathSchema);
+
+        if (isTupleMap(pathSchema) && pathSchema.getType() === "LIST") {
+          const listElementSchema = pathSchema.getByPath("element")?.value(); // TODO: move getting list element schema to a utility function
+          const listElementDescriptor = getDescriptorFactoryForValue(listElementSchema);
+
+          valueDescriptor = listElementDescriptor;
+        } else {
+          valueDescriptor = getDescriptorFactoryForValueByPath(schema, value.operator.field);
+        }
+
+        return {
+          condition: `contains(${attributeNamePlaceholder}, ${valuePlaceholder})`,
+          valuePlaceholders: {
+            [valuePlaceholder]: valueDescriptor!(
+              (value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>).value,
+            ),
+          },
+          attributeNamePlaceholders: attributeNamePlaceholderValues,
+        };
+      }
 
       default:
         condition = [attributeNamePlaceholder, value.operator.operator, valuePlaceholder].join(" ");
         break;
     }
 
-    const valuePlaceholders: Record<string, TypeDescriptor<AttributeTypeDescriptorKey, unknown>> = {};
-
-    const conditionDef = value.operator;
-    if (isConditionDefinition(conditionDef)) {
-      valuePlaceholders[valuePlaceholder] = valueDescriptor!(conditionDef.value);
-    }
+    const conditionDef = value.operator as ComparisonOperatorDefinition<string, string, EntitySchema<string>>;
 
     return {
       condition,
-      valuePlaceholders,
+      valuePlaceholders: {
+        [valuePlaceholder]: valueDescriptor!(conditionDef.value),
+      },
       attributeNamePlaceholders: attributeNamePlaceholderValues,
     };
   }

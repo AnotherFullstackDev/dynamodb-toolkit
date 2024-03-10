@@ -98,3 +98,8 @@
     - Fetch app the available pages;
     - Fetch data pages and yield them from an async generator;
     - Etc..;
+
+## Ongoing points, things to exaluate or fix, notes
+
+- Evaluate how to better create descriptors for fields - either use different attribute descriptors for the same path or a single one;
+- Fix response conversion to convert attribute values according to the schema (dates);
