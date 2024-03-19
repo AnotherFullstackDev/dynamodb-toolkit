@@ -7,3 +7,4 @@ export * from "./get-item/get-item.facade";
 export * from "./put-item/put-item.facade";
 export * from "./update-item/update-item.facade";
 export * from "./delete-item/delete-item.facade";
+export { run as runner } from "./runner/runner.facade";
