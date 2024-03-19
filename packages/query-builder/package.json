@@ -12,7 +12,7 @@
     "package.json"
   ],
   "scripts": {
-    "clean": "rimraf dist",
+    "clean": "rimraf ./dist",
     "build": "yarn clean && tsc"
   },
   "dependencies": {
