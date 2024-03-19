@@ -1,4 +1,4 @@
-import { GenericTupleBuilderResultSchema } from "../general-test";
+import { GenericTupleBuilderResultSchema } from "../schema/schema.types";
 import { TupleMap } from "./schema-tuple-map.facade";
 import { extractSchemaBuilderResult } from "./schema.builder";
 import { TupleMapBuilderResult } from "./schema.types";

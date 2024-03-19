@@ -7,7 +7,7 @@ import {
   validateKeyCondition,
 } from "../condition/condition.facade";
 import { ConditionExpressionBuilder, KeyConditionExpressionBuilder } from "../condition/condition.types";
-import { GenericTupleBuilderResultSchema } from "../general-test";
+import { GenericTupleBuilderResultSchema } from "../schema/schema.types";
 import {
   OperationContext,
   OperationType,

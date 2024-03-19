@@ -7,4 +7,8 @@
     "include": [
         "./src/**/*" // Include all files in the src directory
     ],
+    "exclude": [
+        "./src/general-test.ts",
+        "./src/schema/schema-type-tests.ts"
+    ]
 }

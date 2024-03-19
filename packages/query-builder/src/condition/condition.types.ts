@@ -12,7 +12,7 @@ import {
 } from "../attribute/attribute";
 import { deleteItemFacadeFactory } from "../delete-item/delete-item.facade";
 import { DeleteItemOperationBuilder } from "../delete-item/delete-item.types";
-import { GenericTupleBuilderResultSchema } from "../general-test";
+import { GenericTupleBuilderResultSchema } from "../schema/schema.types";
 import { getItemOperationBuilderFactory } from "../get-item/get-item.facade";
 import { GetItemOperationBuilder } from "../get-item/get-item.types";
 import { OperationContext } from "../operations-common/operations-common.types";

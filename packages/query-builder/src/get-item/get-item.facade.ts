@@ -4,7 +4,7 @@ import {
   OperationType,
   ReturnConsumedCapacityValues,
 } from "../operations-common/operations-common.types";
-import { GenericTupleBuilderResultSchema } from "../general-test";
+import { GenericTupleBuilderResultSchema } from "../schema/schema.types";
 import { InferTupledMap, TransformTableSchemaIntoTupleSchemasMap, TupleMapBuilderResult } from "../schema/schema.types";
 import {
   GetIndividualItemOperationBuilder,

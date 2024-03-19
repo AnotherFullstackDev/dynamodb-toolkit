@@ -12,7 +12,74 @@ import {
   PartitionKey,
   SortKey,
 } from "../attribute/attribute";
-import { ConcatenateArrays, ContainsNull, ContainsUndefined, OmitByValue, PickByValue } from "../utility-types";
+import {
+  ConcatenateArrays,
+  ContainsNull,
+  ContainsUndefined,
+  OmitByValue,
+  PickByValue,
+  ScalarTypes,
+} from "../utility-types";
+
+export type GenericTupleAttributeValue = TupleKeyValuePeer<
+  string,
+  Attribute<string, Attribute<string, unknown> | ScalarTypes | TupleKeyValuePeer<string, unknown>[]>
+  // | Attribute<string, any>
+  // | ScalarTypes
+  // | Date
+  // any
+>;
+
+export type GenericTupleTableSchema = [
+  TupleKeyValuePeer<string, GenericTupleAttributeValue[]>,
+  ...TupleKeyValuePeer<string, GenericTupleAttributeValue[]>[],
+  // TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>,
+  // ...TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>[],
+];
+
+// export type GenericInterfaceTableSchema = TupleKeyValuePeer<string, Record<string, unknown>>[];
+export type GenericInterfaceTableSchema = [
+  TupleKeyValuePeer<string, Record<string, any>>,
+  // ...TupleKeyValuePeer<string, Record<string, any>>[],
+  // ...unknown[],
+];
+
+// @TODO: necessary to encapsulate everything inside attributes to simplify typing
+export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
+  Record<string, unknown>,
+  [
+    ...TupleKeyValuePeer<
+      string,
+      Attribute<
+        any,
+        | TupleMapBuilderResult<any, any>
+        | Attribute<any, any>
+        // | TupleKeyValuePeer<any, any>
+        | ScalarTypes
+        | Date
+        | Record<string, any> // TODO: this type might masc problems with map builder result interfaces
+      >
+      // Attribute<
+      //   unknown,
+      //   // | TupleKeyValuePeer<string, Attribute<unknown, any>>
+      //   | TupleKeyValuePeer<string, any>
+      //   | Attribute<unknown, any>
+      //   | TupleMapBuilderResult<any, any>
+      //   | ScalarTypes
+      //   | Date
+      // >
+    >[],
+  ]
+>;
+// export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
+//   // | Attribute<string, Attribute<string, unknown> | string | number | boolean | TupleKeyValuePeer<string, unknown>[]>
+//   Attribute<string, any | any[]> | TupleMapBuilderResult<any, any> | string | number | boolean | Date
+// >;
+
+export type GenericTupleBuilderResultSchema = [
+  TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>,
+  ...TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>[],
+];
 
 // type UnitedWithNull<T> = T | null | undefined;
 // type TestNullable = string | null | undefined;
@@ -256,39 +323,39 @@ const asd: HalfOptionalValuesTestDeepNesting = {
   },
 };
 
-type TT = TurnOptionalFieldsToPartial<{
-  // a: Attribute<AttributeType.DATE, Date, false, false>;
-  // b: OptionalValue<Attribute<AttributeType.DATE, Date, false, true>>;
-  a: string;
-  b: OptionalValue<string>;
-  c: OptionalValue<{
-    b: OptionalValue<string>;
-    c: OptionalValue<{
-      b: OptionalValue<string>;
-      j: OptionalValue<{
-        a: string;
-        b: OptionalValue<string>;
-      }>;
-    }>;
-  }>[];
-  // d: {
-  //   a: {
-  //     a: {
-  //       a: OptionalValue<string>;
-  //     };
-  //   };
-  // };
-}>;
+// type TT = TurnOptionalFieldsToPartial<{
+//   // a: Attribute<AttributeType.DATE, Date, false, false>;
+//   // b: OptionalValue<Attribute<AttributeType.DATE, Date, false, true>>;
+//   a: string;
+//   b: OptionalValue<string>;
+//   c: OptionalValue<{
+//     b: OptionalValue<string>;
+//     c: OptionalValue<{
+//       b: OptionalValue<string>;
+//       j: OptionalValue<{
+//         a: string;
+//         b: OptionalValue<string>;
+//       }>;
+//     }>;
+//   }>[];
+//   // d: {
+//   //   a: {
+//   //     a: {
+//   //       a: OptionalValue<string>;
+//   //     };
+//   //   };
+//   // };
+// }>;
 
-const t: TT = {
-  c: [
-    {
-      c: {
-        b: "s",
-      },
-    },
-  ],
-};
+// const t: TT = {
+//   c: [
+//     {
+//       c: {
+//         b: "s",
+//       },
+//     },
+//   ],
+// };
 
 // TODO: map builders should be uniform
 // TODO: map builders should always accept attribute as a value (currently, untill we have a wrapper for a data type)
@@ -367,7 +434,7 @@ export type ForEachMapValuePrependKey<T, K extends string = ""> = T extends [inf
 
         ...ForEachMapValuePrependKey<R, K>,
       ]
-    : F
+    : [F] // TODO: hack to address "A rest element type must be an array type." TSError
   : T;
 
 export type TransformTableSchemaIntoSchemaInterfacesMap<T> = T extends [infer F, ...infer R]

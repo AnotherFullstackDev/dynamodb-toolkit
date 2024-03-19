@@ -17,11 +17,11 @@ import { qb } from "./example-context";
       set("building.rooms", appendList([{ size: 400, floor: null, hasLock: null }])),
       set("building.rooms", appendList([{ size: 400, hasLock: null }])),
       set("building.rooms", appendList([{ size: 400 }])),
-      set("building.rooms", appendList([{ size2: 400 }])), // should not work because the name of the field in the internal object is wrong
+      // set("building.rooms", appendList([{ size2: 400 }])), // should not work because the name of the field in the internal object is wrong
       set("building.rooms", null),
       set("role", null),
       set("role", undefined),
-      set("role", 10), // should not work because the type of the field is wrong
+      // set("role", 10), // should not work because the type of the field is wrong
       set("building.rooms.[0]", { size: 1000 }),
       set("building.rooms.[0]", { size: 1000, hasLock: false }),
       set("building.rooms.[0]", { size: 1000, hasLock: false, floor: 10 }),

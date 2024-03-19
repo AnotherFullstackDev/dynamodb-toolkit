@@ -1,7 +1,7 @@
 import { QueryCommandOutput } from "@aws-sdk/client-dynamodb";
 import { runConditionBuilder, serializeConditionDef, serializeProjectionFields } from "../condition/condition.facade";
 import { ConditionExpressionBuilder } from "../condition/condition.types";
-import { GenericTupleBuilderResultSchema } from "../general-test";
+import { GenericTupleBuilderResultSchema } from "../schema/schema.types";
 import {
   InferProjectionFieldsFromSchemas,
   OperationContext,

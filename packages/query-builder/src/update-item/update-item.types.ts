@@ -115,7 +115,7 @@ export type UnpackEntityAttributesIntoValueTypes<T> = T extends [infer F, ...inf
         [K, ResolveOptional<TurnOptionalFieldsToPartial<TransformAttributeValueIntoRecord<V>>>],
         ...UnpackEntityAttributesIntoValueTypes<R>,
       ]
-    : F
+    : [F] // TODO: hack to address "A rest element type must be an array type." TSError
   : T;
 
 type UET = UnpackEntityAttributesIntoValueTypes<

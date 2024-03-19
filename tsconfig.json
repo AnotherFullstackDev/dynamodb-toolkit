@@ -1,7 +1,7 @@
 {
 "compilerOptions": {
     "target": "es2018",
-    "module": "commonjs",
+    "module": "ESNext",
     "lib": [
         "es2018"
     ],
@@ -13,7 +13,7 @@
     "baseUrl": "./",
     "paths": {
         "*": [
-            "node_modules/*",
+        "node_modules/*",
         "packages/query-builder/src/types/*"
     ]
 },

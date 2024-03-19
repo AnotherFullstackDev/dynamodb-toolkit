@@ -3,7 +3,7 @@ import { AttributeType } from "../attribute/attribute";
 import { isAttributeOfParticularType } from "../attribute/attribute.matchers";
 import { runConditionBuilder, serializeConditionDef } from "../condition/condition.facade";
 import { ConditionExpressionBuilder } from "../condition/condition.types";
-import { GenericInterfaceTableSchema, GenericTupleBuilderResultSchema } from "../general-test";
+import { GenericInterfaceTableSchema, GenericTupleBuilderResultSchema } from "../schema/schema.types";
 import {
   GenericCondition,
   OperationContext,

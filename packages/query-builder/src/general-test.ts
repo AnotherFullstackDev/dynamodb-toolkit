@@ -285,65 +285,65 @@ const it: InterfaceTable = [
 const gt: GenericTupleTableSchema = tt;
 const gi: GenericInterfaceTableSchema = it;
 
-export type GenericTupleAttributeValue = TupleKeyValuePeer<
-  string,
-  Attribute<string, Attribute<string, unknown> | ScalarTypes | TupleKeyValuePeer<string, unknown>[]>
-  // | Attribute<string, any>
-  // | ScalarTypes
-  // | Date
-  // any
->;
-
-export type GenericTupleTableSchema = [
-  TupleKeyValuePeer<string, GenericTupleAttributeValue[]>,
-  ...TupleKeyValuePeer<string, GenericTupleAttributeValue[]>[],
-  // TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>,
-  // ...TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>[],
-];
-
-// export type GenericInterfaceTableSchema = TupleKeyValuePeer<string, Record<string, unknown>>[];
-export type GenericInterfaceTableSchema = [
-  TupleKeyValuePeer<string, Record<string, any>>,
-  // ...TupleKeyValuePeer<string, Record<string, any>>[],
-  // ...unknown[],
-];
-
-// @TODO: necessary to encapsulate everything inside attributes to simplify typing
-export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
-  Record<string, unknown>,
-  [
-    ...TupleKeyValuePeer<
-      string,
-      Attribute<
-        any,
-        | TupleMapBuilderResult<any, any>
-        | Attribute<any, any>
-        // | TupleKeyValuePeer<any, any>
-        | ScalarTypes
-        | Date
-        | Record<string, any> // TODO: this type might masc problems with map builder result interfaces
-      >
-      // Attribute<
-      //   unknown,
-      //   // | TupleKeyValuePeer<string, Attribute<unknown, any>>
-      //   | TupleKeyValuePeer<string, any>
-      //   | Attribute<unknown, any>
-      //   | TupleMapBuilderResult<any, any>
-      //   | ScalarTypes
-      //   | Date
-      // >
-    >[],
-  ]
->;
-// export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
-//   // | Attribute<string, Attribute<string, unknown> | string | number | boolean | TupleKeyValuePeer<string, unknown>[]>
-//   Attribute<string, any | any[]> | TupleMapBuilderResult<any, any> | string | number | boolean | Date
+// export type GenericTupleAttributeValue = TupleKeyValuePeer<
+//   string,
+//   Attribute<string, Attribute<string, unknown> | ScalarTypes | TupleKeyValuePeer<string, unknown>[]>
+//   // | Attribute<string, any>
+//   // | ScalarTypes
+//   // | Date
+//   // any
 // >;
 
-export type GenericTupleBuilderResultSchema = [
-  TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>,
-  ...TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>[],
-];
+// export type GenericTupleTableSchema = [
+//   TupleKeyValuePeer<string, GenericTupleAttributeValue[]>,
+//   ...TupleKeyValuePeer<string, GenericTupleAttributeValue[]>[],
+//   // TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>,
+//   // ...TupleKeyValuePeer<string, [GenericTupleAttributeValue, ...GenericTupleAttributeValue[]]>[],
+// ];
+
+// // export type GenericInterfaceTableSchema = TupleKeyValuePeer<string, Record<string, unknown>>[];
+// export type GenericInterfaceTableSchema = [
+//   TupleKeyValuePeer<string, Record<string, any>>,
+//   // ...TupleKeyValuePeer<string, Record<string, any>>[],
+//   // ...unknown[],
+// ];
+
+// // @TODO: necessary to encapsulate everything inside attributes to simplify typing
+// export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
+//   Record<string, unknown>,
+//   [
+//     ...TupleKeyValuePeer<
+//       string,
+//       Attribute<
+//         any,
+//         | TupleMapBuilderResult<any, any>
+//         | Attribute<any, any>
+//         // | TupleKeyValuePeer<any, any>
+//         | ScalarTypes
+//         | Date
+//         | Record<string, any> // TODO: this type might masc problems with map builder result interfaces
+//       >
+//       // Attribute<
+//       //   unknown,
+//       //   // | TupleKeyValuePeer<string, Attribute<unknown, any>>
+//       //   | TupleKeyValuePeer<string, any>
+//       //   | Attribute<unknown, any>
+//       //   | TupleMapBuilderResult<any, any>
+//       //   | ScalarTypes
+//       //   | Date
+//       // >
+//     >[],
+//   ]
+// >;
+// // export type GenericTupleBuilderResultAttributeValue = TupleMapBuilderResult<
+// //   // | Attribute<string, Attribute<string, unknown> | string | number | boolean | TupleKeyValuePeer<string, unknown>[]>
+// //   Attribute<string, any | any[]> | TupleMapBuilderResult<any, any> | string | number | boolean | Date
+// // >;
+
+// export type GenericTupleBuilderResultSchema = [
+//   TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>,
+//   ...TupleKeyValuePeer<string, GenericTupleBuilderResultAttributeValue>[],
+// ];
 
 type TableBase2 = typeof tableSchema;
 type Table = InferTupledMap<TableBase2>;

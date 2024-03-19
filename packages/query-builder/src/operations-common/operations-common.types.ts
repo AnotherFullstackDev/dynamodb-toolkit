@@ -9,7 +9,11 @@ import {
 import { CombineArrayElementsViaUnion, ConcatenateArrays } from "../utility-types";
 import { SupportedOperationDefsByRunner } from "../runner/runner.facade";
 
-type SchemaKeys<S> = S extends [infer F, ...infer R] ? (F extends [infer K, infer S] ? [K, ...SchemaKeys<R>] : F) : S;
+type SchemaKeys<S> = S extends [infer F, ...infer R]
+  ? F extends [infer K, infer S]
+    ? [K, ...SchemaKeys<R>]
+    : [F] // TODO: hack to address "A rest element type must be an array type." TSError
+  : [S];
 
 export type InferProjectionFieldsFromSchemas<T> = Array<
   CombineArrayElementsViaUnion<
