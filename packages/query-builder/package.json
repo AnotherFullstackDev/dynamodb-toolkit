@@ -1,6 +1,9 @@
 {
   "name": "@another-fullstack-dev/dynamodb-query-builder",
   "version": "0.0.10",
+  "publishConfig": {
+    "access": "public"
+  },
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "license": "MIT",
