@@ -127,11 +127,6 @@ export const getDescriptorFactoryForValue = (attribute: unknown) =>
         return dateDescriptorFactory;
       }
 
-      // TODO: add support for type nullability
-      // if (false) {
-      //   return nullDescriptorFactory;
-      // }
-
       if (innerValue instanceof TupleMap && innerValue.getType() === "MAP") {
         return mapDescriptorFactory;
       }
@@ -144,6 +139,7 @@ export const getDescriptorFactoryForValue = (attribute: unknown) =>
 
       // return null;
 
+      console.error(innerValue);
       throw new Error("No type descriptor found for the value");
     })(attribute),
   );
