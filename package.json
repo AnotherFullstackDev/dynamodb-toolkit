@@ -1,5 +1,5 @@
 {
-  "name": "@another-fullstack-dev/dynamodb-toolkit",
+  "name": "@another.fullstack.dev/dynamodb-toolkit",
   "version": "0.0.1",
   "description": "A query build for DynamoDB operation with extra strong typing",
   "private": true,

@@ -1,5 +1,5 @@
 {
-  "name": "@another-fullstack-dev/dynamodb-query-builder",
+  "name": "@another.fullstack.dev/dynamodb-query-builder",
   "version": "0.0.8",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,5 +18,5 @@
   "devDependencies": {
     "rimraf": "^5.0.5"
   },
-  "gitHead": "50d12dc5e95957342286531fd30b1e68c0b1da8f"
+  "gitHead": "7bf243eb9995d7188c55ca69b988d5f4e09093f6"
 }
