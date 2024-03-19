@@ -2,26 +2,28 @@
   "name": "dynamodb-query-builder",
   "version": "0.0.1",
   "description": "A query build for DynamoDB operation with extra strong typing",
+  "private": true,
   "main": "dist/index.js",
   "scripts": {
     "test": "jest --coverage=false"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "keywords": [
     "dynamodb",
     "query",
     "builder",
     "typescript"
   ],
-  "author": "Oleksandr Korzhov",
+  "author": "Another Fullstack Dev",
   "license": "ISC",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "jest": "^29.7.0",
+    "lerna": "^8.1.2",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
-  },
-  "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.514.0"
   }
 }

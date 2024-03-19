@@ -1,0 +1,12 @@
+{
+  "name": "@another-fullstack-dev/dynamodb-query-builder",
+  "version": "0.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.514.0"
+  }
+}
