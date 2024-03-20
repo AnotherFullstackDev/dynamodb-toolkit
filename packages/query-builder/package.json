@@ -16,6 +16,12 @@
     "url": "https://github.com/AnotherFullstackDev/dynamodb-toolkit",
     "directory": "packages/query-builder"
   },
+  "keywords": [
+    "dynamodb",
+    "query",
+    "builder",
+    "typescript"
+  ],
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "yarn clean && tsc"
