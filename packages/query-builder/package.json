@@ -8,9 +8,13 @@
   "types": "dist/index.d.ts",
   "license": "MIT",
   "files": [
-    "dist/**/*",
+    "./dist/**/*",
     "package.json"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnotherFullstackDev/dynamodb-toolkit/tree/main/packages/query-builder"
+  },
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "yarn clean && tsc"
