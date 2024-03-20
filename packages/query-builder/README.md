@@ -2,6 +2,10 @@
 
 Strongly typed query (actually operations) builder for DynamoDB.
 
+```bash
+npm install @another-fullstack-dev/dynamodb-query-builder
+```
+
 ## Features
 
 - Full type support for all dynamodb operations (except batch for now);
